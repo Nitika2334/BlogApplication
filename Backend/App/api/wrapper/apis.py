@@ -1,6 +1,6 @@
 from flask import request
 from flask_restful import Resource
-from App.Api.wrapper.utils import register, login, logout
+from App.Api.wrapper.utils import user_register, login, logout
 from flask_jwt_extended import jwt_required
 
 class SomeProtectedResource(Resource):
@@ -11,7 +11,7 @@ class SomeProtectedResource(Resource):
 class RegisterResource(Resource):
     def post(self):
         data = request.get_json()
-        response_data, status_code = register(data)
+        response_data, status_code = user_register(data)
         return response_data, status_code
 
 class LoginResource(Resource):
