@@ -16,7 +16,6 @@ def validate_password(password):
 
 def user_register(data):
     try:
-
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
@@ -62,10 +61,15 @@ def user_register(data):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40002'}
             }, 400
+        
+        
 
         hashed_password = generate_password_hash(password)
-
         new_user = add_user(username, email, hashed_password)
+
+        expires = datetime.timedelta(minutes=30)
+        access_token = create_access_token(identity=new_user.uid, expires_delta=expires)
+
         return {
             'message': 'User registered successfully.',
             'status': True,
@@ -73,6 +77,7 @@ def user_register(data):
             'error_status': {'error_code': '00000'},
             'data': {
                 'user_id': str(new_user.uid),
+                'access_token':access_token,
                 'username': new_user.username,
                 'email': new_user.email
             }
