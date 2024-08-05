@@ -1,6 +1,6 @@
 from flask import Blueprint
 from flask_restful import Api
-from .apis import LoginResource, LogoutResource
+from ..wrapper.apis import LoginResource, LogoutResource
 
 route = Blueprint('route', __name__)
 api_v1 = Api(route)
