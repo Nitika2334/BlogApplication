@@ -18,12 +18,19 @@ def create_app():
     migrate.init_app(app, db)
     bcrypt.init_app(app)
 
-    # Import models here to avoid circular imports
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        from App.wrapper.utils import is_token_revoked
+        return is_token_revoked(jwt_payload)
+
     from App.Models.User.UserModel import User
     from App.Models.Comment.CommentModel import Comment
     from App.Models.Post.PostModel import Post
 
     with app.app_context():
         db.create_all() 
+    
 
+    from .Route.route import route
+    app.register_blueprint(route,url_prefix='/api/v1')
     return app
