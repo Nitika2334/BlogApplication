@@ -1,6 +1,6 @@
 from flask import request
 from flask_restful import Resource
-from App.api.wrapper.utils import register, login, logout
+from App.Api.wrapper.utils import register, login, logout
 from flask_jwt_extended import jwt_required
 
 class SomeProtectedResource(Resource):

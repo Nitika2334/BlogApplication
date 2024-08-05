@@ -15,54 +15,56 @@ def validate_password(password):
     return re.match(password_regex, password)
 
 def register(data):
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
-
-    if not username or not email or not password:
-        return {
-            'message': 'Please provide name, email, and password.',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40001'}
-        }, 400
-
-    if not validate_email(email):
-        return {
-            'message': 'Email format is invalid.',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40013'}
-        }, 400
-
-    if not validate_password(password):
-        return {
-            'message': 'Invalid field value: password.',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40011'}
-        }, 400
-
-    existing_user = get_user_by_username(username)
-    if existing_user:
-        return {
-            'message': 'User already exists.',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40002'}
-        }, 400
-
-    existing_email = get_user_by_email(email)
-    if existing_email:
-        return {
-            'message': 'User already exists.',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40002'}
-        }, 400
-
-    hashed_password = generate_password_hash(password)
     try:
+
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+
+        if not username or not email or not password:
+            return {
+                'message': 'Please provide name, email, and password.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40001'}
+            }, 400
+
+        if not validate_email(email):
+            return {
+                'message': 'Email format is invalid.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40013'}
+            }, 400
+
+        if not validate_password(password):
+            return {
+                'message': 'Invalid field value: password.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40011'}
+            }, 400
+
+        existing_user = get_user_by_username(username)
+        if existing_user:
+            return {
+                'message': 'User already exists.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40002'}
+            }, 400
+
+        existing_email = get_user_by_email(email)
+        if existing_email:
+            return {
+                'message': 'User already exists.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40002'}
+            }, 400
+
+        hashed_password = generate_password_hash(password)
+
         new_user = add_user(username, email, hashed_password)
         return {
             'message': 'User registered successfully.',
@@ -74,14 +76,14 @@ def register(data):
                 'username': new_user.username,
                 'email': new_user.email
             }
-        }, 201
+        }, 200
     except Exception as e:
         return {
             'message': f'Registration failed: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '50000'}
-        }, 500
+        }, 400
 
 
 def login(data):
