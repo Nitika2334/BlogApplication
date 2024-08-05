@@ -1,9 +1,11 @@
 from flask import Blueprint
 from flask_restful import Api
-from ..wrapper.apis import LoginResource, LogoutResource
+from App.Api.wrapper.apis import LoginResource, LogoutResource, RegisterResource
 
 route = Blueprint('route', __name__)
 api_v1 = Api(route)
+
+api_v1.add_resource(RegisterResource, '/register')
 
 api_v1.add_resource(LoginResource, '/login')
 

@@ -20,7 +20,7 @@ def create_app():
 
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        from App.wrapper.utils import is_token_revoked
+        from App.Api.wrapper.utils import is_token_revoked
         return is_token_revoked(jwt_payload)
 
     from App.Models.User.UserModel import User
@@ -31,6 +31,6 @@ def create_app():
         db.create_all() 
     
 
-    from .Route.route import route
+    from App.Api.route import route
     app.register_blueprint(route,url_prefix='/api/v1')
     return app
