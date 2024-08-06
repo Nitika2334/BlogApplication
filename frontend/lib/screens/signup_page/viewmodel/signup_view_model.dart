@@ -1,8 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:frontend/models/newUser.dart';
 import 'package:go_router/go_router.dart';
+
+import '../signup_model/newUser.dart';
 
 class SignupController extends ChangeNotifier {
   TextEditingController username = TextEditingController();

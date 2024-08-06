@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/controllers/signupController.dart';
-import 'package:frontend/screens/login_page.dart';
-import 'package:frontend/screens/signup_page.dart';
-import 'package:frontend/controllers/loginController.dart';
+
+import 'package:frontend/screens/login_page/view_model/login_view_model.dart';
+import 'package:frontend/screens/login_page/views/login_page.dart';
+import 'package:frontend/screens/signup_page/viewmodel/signup_view_model.dart';
+import 'package:frontend/screens/signup_page/views/signup_page.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
