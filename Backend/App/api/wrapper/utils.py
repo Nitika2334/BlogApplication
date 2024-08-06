@@ -1,5 +1,5 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from .schema import get_user_by_username, get_user_by_email, add_user
+from .schema import get_user_by_username, get_user_by_email, add_user, create_new_comment, get_comments_by_post_id, update_existing_comment, delete_existing_comment
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt, jwt_required
 import datetime
 import re
@@ -165,3 +165,131 @@ def is_token_revoked(jwt_payload):
             del REVOKED_TOKENS[token]
 
     return jti in REVOKED_TOKENS
+
+
+# Comments
+
+def comment_to_dict(comment):
+    return {
+        'uid': str(comment.uid),
+        'content': comment.content,
+        'user_uid': str(comment.user_uid),
+        'post_uid': str(comment.post_uid),
+        'created_at': comment.created_at.isoformat(),
+        'updated_at': comment.updated_at.isoformat(),
+    }
+
+def create_comment(data, post_uid, user_uid):
+    try:
+        content = data.get('content')
+        if not content:
+            return {
+                'message': 'Content is required',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40012'}
+            }, 400
+        
+        new_comment = create_new_comment(post_uid, user_uid, content)
+        return {
+            'message': 'Comment created successfully',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'},
+            'data': {
+                'comment_id': str(new_comment.uid),
+                'post_id': str(post_uid),
+                'user_id': str(user_uid),
+                'content': new_comment.content,
+                'created_at': str(new_comment.created_at)
+            }
+        }, 201
+    except Exception:
+        return {
+            'message': 'Failed to create comment',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40013'}
+        }, 400
+    
+    
+def get_comments(post_uid):
+    try:
+        comments = get_comments_by_post_id(post_uid)
+        comments_list = [comment_to_dict(comment) for comment in comments]
+        return {
+            'message': 'Comments retrieved successfully',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'},
+            'data': {
+                'comments': comments_list
+            }
+        }, 200
+    except Exception:
+        return {
+            'message': 'Failed to get comments',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40014'}
+        }, 400
+    
+def update_comment(data, comment_id):
+    try:
+        content = data.get('content')
+        if not content:
+            return {
+                'message': 'Content is required',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40012'}
+            }, 400
+        
+        success = update_existing_comment(comment_id, content)
+        
+        if success:
+            return {
+                'message': 'Comment updated successfully',
+                'status': True,
+                'type': 'success_message',
+                'error_status': {'error_code': '00000'}
+            }, 200
+        else:
+            return {
+                'message': 'Comment not found',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40015'}
+            }, 404
+    except Exception:
+        return {
+            'message': 'Failed to update comment',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40016'}
+        }, 400
+
+def delete_comment(comment_id, user_id):
+    try:
+        success = delete_existing_comment(comment_id, user_id)    
+        if success:
+            return {
+                'message': 'Comment deleted successfully',
+                'status': True,
+                'type': 'success_message',
+                'error_status': {'error_code': '00000'}
+            }, 200
+        else:
+            return {
+                'message': 'Comment not found or not authorized',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40017'}
+            }, 404
+    except Exception:
+        return {
+            'message': 'Failed to delete comment',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40018'}
+        }, 400
