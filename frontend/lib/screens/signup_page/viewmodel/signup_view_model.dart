@@ -11,9 +11,15 @@ class SignupController extends ChangeNotifier {
   TextEditingController email = TextEditingController();
 
   bool incorrectEmail = false;
+  bool passwordError = false;
+
   String _message = "";
 
   Future<void> submit(BuildContext context) async {
+
+    incorrectEmail = false;
+    passwordError = false;
+
     NewUser newUser = NewUser(username: username.text.trim(), password: password.text.trim(), email: email.text.trim());
 
     bool validateResult = validateUser(newUser);
@@ -25,8 +31,8 @@ class SignupController extends ChangeNotifier {
         await showMessage(context: context, title: "Success", message: 'Account created successfully');
         GoRouter.of(context).go('/home');
       } else {
-        print("Error: Registration failed");
-        await showMessage(context: context, title: "Error", message: "Registration failed. Please try again.");
+        print("Error: $_message");
+        await showMessage(context: context, title: "Error", message: _message);
       }
     } else {
       print("Error: $_message");
@@ -35,6 +41,7 @@ class SignupController extends ChangeNotifier {
     notifyListeners();
   }
 
+
   bool validateUser(NewUser user) {
     if (user.username!.isEmpty || user.password!.isEmpty || user.email!.isEmpty) {
       _message = "Fields cannot be empty";
@@ -42,6 +49,7 @@ class SignupController extends ChangeNotifier {
     }
 
     if (user.password!.length < 8) {
+      passwordError = true;
       _message = "Password must be at least 8 characters long";
       return false;
     }
@@ -58,15 +66,22 @@ class SignupController extends ChangeNotifier {
     String emailPattern =
         r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
     RegExp regex = RegExp(emailPattern);
-    incorrectEmail = true;
+    if(!regex.hasMatch(email)){
+      incorrectEmail = true;
+    }
     return regex.hasMatch(email);
   }
 
   Future<bool> authenticateUser(NewUser user) async {
     Dio dio = Dio();
-    String apiUrl = 'https://example.com/auth/register';
+    String apiUrl = 'http://10.0.2.2:5000/api/v1/register';
 
     try {
+      // Configure Dio to not throw on error status codes
+      dio.options.validateStatus = (status) {
+        return status! < 500;
+      };
+
       Map<String, dynamic> requestData = {
         'username': user.username,
         'password': user.password,
@@ -74,17 +89,35 @@ class SignupController extends ChangeNotifier {
       };
 
       final response = await dio.post(apiUrl, data: requestData);
+      final responseData = response.data;
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && responseData['status'] == true) {
         return true;
+      } else if (response.statusCode == 400) {
+        final errorCode = responseData['error_status']['error_code'];
+        switch (errorCode) {
+          case '40001':
+            _message = 'Please provide name, email, and password.';
+            break;
+          case '40002':
+            _message = 'User already exists.';
+            break;
+          default:
+            _message = 'An error occurred. Please try again.';
+        }
       } else {
-        return false;
+        _message = 'Unexpected error. Please try again.';
       }
+      return false;
     } catch (e) {
       print("Error: $e");
+      _message = 'Network error. Please check your connection.';
       return false;
     }
   }
+
+
+
 
   Future<void> showMessage({required BuildContext context, required String title, required String message}) async {
     showDialog(

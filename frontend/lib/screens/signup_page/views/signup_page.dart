@@ -150,6 +150,10 @@ class _SignupPageState extends State<SignupPage> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color: controller.passwordError ? Colors.red : Colors.transparent,
+                                width: 3,
+                              ),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(9,0,0,0),
@@ -166,6 +170,12 @@ class _SignupPageState extends State<SignupPage> {
                                     hintText: 'eg. password',
                                     obscureText: true,
                                   ),
+
+                                  if (controller.passwordError)
+                                    const Text(
+                                      'Password must be at least 8 characters',
+                                      style: TextStyle(color: Colors.red, fontSize: 17),
+                                    ),
                                 ],
                               ),
                             ),

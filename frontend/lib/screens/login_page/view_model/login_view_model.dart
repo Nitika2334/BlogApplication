@@ -13,6 +13,9 @@ class LoginController extends ChangeNotifier {
   String _message = "";
 
   Future<void> submit(BuildContext context) async {
+
+    passwordError = false;
+
     User user = User(username: username.text.trim(), password: password.text.trim());
 
     bool validateResult = validateUser(user);
@@ -61,7 +64,7 @@ class LoginController extends ChangeNotifier {
 
   Future<bool> authenticateUser(User user) async {
     Dio dio = Dio();
-    String apiUrl = 'https://dummyjson.com/auth/login';
+    String apiUrl = 'http://10.0.2.2:5000/api/v1/login';
 
     try {
       Map<String, dynamic> requestData = {
