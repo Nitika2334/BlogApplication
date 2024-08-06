@@ -3,8 +3,9 @@ from .schema import get_user_by_username, get_user_by_email, add_user
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt, jwt_required
 import datetime
 import re
+import time
 
-REVOKED_TOKENS = set()
+REVOKED_TOKENS = {}
 
 def validate_email(email):
     email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -82,19 +83,19 @@ def user_register(data):
                 'email': new_user.email
             }
         }, 200
-    except Exception as e:
+    except Exception:
         return {
-            'message': f'Registration failed: {str(e)}',
+            'message': 'Registration failed',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '50000'}
+            'error_status': {'error_code': '40000'}
         }, 400
 
 
-def login(data):
-    username = data.get('username')
-    password = data.get('password')
+def user_login(data):
     try:
+        username = data.get('username')
+        password = data.get('password')
         user = get_user_by_username(username)
 
         if user and check_password_hash(user.password, password):
@@ -114,31 +115,28 @@ def login(data):
             }
             return response_data, 200
         else:
-  
             response_data = {
                 'message': 'Invalid credentials',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40100'},
-                'error': 'Invalid username or password'
+                'error_status': {'error_code': '40004'}
             }
-            return response_data, 401
-    except Exception as e:
+            return response_data, 400
+    except Exception:
         response_data = {
             'message': 'Login failed',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '50000'},
-            'error': str(e)
+            'error_status': {'error_code': '40000'}
         }
-        return response_data, 500
+        return response_data, 400
 
-@jwt_required()
-def logout():
-    
+
+def user_logout():
     try:
-        jti = get_jwt()['jti']  
-        REVOKED_TOKENS.add(jti) 
+        jti = get_jwt()['jti']
+        exp = get_jwt()['exp']  
+        REVOKED_TOKENS[jti] = exp
 
         response_data = {
             'message': 'User logged out successfully',
@@ -147,18 +145,23 @@ def logout():
             'error_status': {'error_code': '00000'}
         }
         return response_data, 200
-    except Exception as e:
+    except Exception:
         
         response_data = {
             'message': 'Logout failed',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '50000'},
-            'error': str(e)
+            'error_status': {'error_code': '40005'}
         }
-        return response_data, 500
+        return response_data, 400
 
 def is_token_revoked(jwt_payload):
-   
     jti = jwt_payload['jti']
+    now = time.time()
+
+    # Clean up expired tokens
+    for token, exp in list(REVOKED_TOKENS.items()):
+        if exp < now:
+            del REVOKED_TOKENS[token]
+
     return jti in REVOKED_TOKENS
