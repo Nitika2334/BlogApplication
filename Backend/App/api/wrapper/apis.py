@@ -19,7 +19,7 @@ class RegisterResource(Resource):
                 'message': 'Registration failed',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40000'}
+                'error_status': {'error_code': '40003'}
             }, 400
 
 class LoginResource(Resource):
@@ -33,7 +33,7 @@ class LoginResource(Resource):
                 'message': 'Login failed',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40000'}
+                'error_status': {'error_code': '40003'}
             }, 400
 
 class LogoutResource(Resource):
@@ -47,5 +47,5 @@ class LogoutResource(Resource):
                 'message': 'Logout failed',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40000'}
+                'error_status': {'error_code': '40003'}
             }, 400

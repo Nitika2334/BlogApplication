@@ -83,9 +83,9 @@ def user_register(data):
                 'email': new_user.email
             }
         }, 200
-    except Exception as e:
+    except Exception:
         return {
-            'message': f'Registration failed: {str(e)}',
+            'message': 'Registration failed',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40000'}
@@ -119,7 +119,7 @@ def user_login(data):
                 'message': 'Invalid credentials',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40100'}
+                'error_status': {'error_code': '40004'}
             }
             return response_data, 400
     except Exception:
@@ -151,7 +151,7 @@ def user_logout():
             'message': 'Logout failed',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '40000'}
+            'error_status': {'error_code': '40005'}
         }
         return response_data, 400
 
