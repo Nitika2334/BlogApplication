@@ -11,4 +11,4 @@ api_v1.add_resource(LoginResource, '/login')
 
 api_v1.add_resource(LogoutResource, '/logout')
 
-api_v1.add_resource(PostResource, '/post')
+api_v1.add_resource(PostResource, '/posts', '/posts/<uuid:post_id>')

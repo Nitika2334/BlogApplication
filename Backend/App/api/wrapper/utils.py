@@ -1,5 +1,14 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from .schema import get_user_by_username, get_user_by_email, add_user, get_post_by_id, create_post, update_post, delete_post
+from .schema import(
+    get_user_by_username, 
+    get_user_by_email, 
+    add_user, 
+    create_new_post,   
+    get_post_by_id, 
+    update_post, 
+    delete_post
+)
+
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt, jwt_required
 import datetime
 import re
@@ -88,7 +97,7 @@ def user_register(data):
             'error_status': {'error_code': '50000'}
         }, 400
 
-def login(data):
+def user_login(data):
     username = data.get('username')
     password = data.get('password')
     try:
@@ -130,7 +139,7 @@ def login(data):
         return response_data, 500
 
 @jwt_required()
-def logout():
+def user_logout():
     try:
         jti = get_jwt()['jti']
         REVOKED_TOKENS.add(jti)
@@ -156,54 +165,64 @@ def is_token_revoked(jwt_payload):
     jti = jwt_payload['jti']
     return jti in REVOKED_TOKENS
 
-@jwt_required()
+# Post Functions
+
+def post_to_dict(post):
+    return {
+        'uid': str(post.uid),
+        'title': post.title,
+        'content': post.content,
+        'user_uid': str(post.user_uid),
+        'created_at': post.created_at.isoformat(),
+        'updated_at': post.updated_at.isoformat(),
+    }
+
 def create_new_post(data):
+    """
+    Create a new post with the given data.
+    """
     try:
         title = data.get('title')
         content = data.get('content')
-        user_id = get_jwt_identity()
+        user_uid = get_jwt_identity()  # Extract user ID from JWT token
 
         if not title or not content:
             return {
-                'message': 'Missing data.',
+                'message': 'Title and content are required.',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40001'}
             }, 400
 
-        new_post = create_post(title, content, user_id)
+        new_post = create_new_post(title, content, user_uid)
 
         return {
             'message': 'Post created successfully.',
             'status': True,
             'type': 'success_message',
             'error_status': {'error_code': '00000'},
-            'data': {
-                'post_id': new_post.id,
-                'title': new_post.title,
-                'content': new_post.content,
-                'author': new_post.author,
-                'created_at': new_post.created_at
-            }
-        }, 200
+            'data': post_to_dict(new_post)
+        }, 201
     except Exception as e:
         return {
             'message': f'Failed to create post: {str(e)}',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '40000'}
+            'error_status': {'error_code': '40004'}
         }, 400
 
-@jwt_required()
 def fetch_post(post_id):
+    """
+    Fetch a post by its ID.
+    """
     try:
         post = get_post_by_id(post_id)
         if not post:
             return {
-                'message': 'Post not found.',
+                'message': 'Post not found',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40020'}
+                'error_status': {'error_code': '40006'}
             }, 404
 
         return {
@@ -211,86 +230,80 @@ def fetch_post(post_id):
             'status': True,
             'type': 'success_message',
             'error_status': {'error_code': '00000'},
-            'data': {
-                'post': {
-                    'post_id': post.id,
-                    'title': post.title,
-                    'content': post.content,
-                    'author': post.author,
-                    'created_at': post.created_at
-                }
-            }
+            'data': post_to_dict(post)
         }, 200
     except Exception as e:
         return {
             'message': f'Failed to retrieve post: {str(e)}',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '40000'}
+            'error_status': {'error_code': '40005'}
         }, 400
 
-@jwt_required()
 def update_existing_post(post_id, data):
+    """
+    Update a post by its ID.
+    """
     try:
         title = data.get('title')
         content = data.get('content')
 
-        post = get_post_by_id(post_id)
-        if not post:
+        if not title and not content:
             return {
-                'message': 'Post not found.',
+                'message': 'Title or content is required.',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40020'}
+                'error_status': {'error_code': '40007'}
+            }, 400
+
+        success = update_post(post_id, title, content)
+
+        if success:
+            return {
+                'message': 'Post updated successfully.',
+                'status': True,
+                'type': 'success_message',
+                'error_status': {'error_code': '00000'}
+            }, 200
+        else:
+            return {
+                'message': 'Post not found',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40008'}
             }, 404
-
-        updated_post = update_post(post_id, title, content)
-
-        return {
-            'message': 'Post updated successfully.',
-            'status': True,
-            'type': 'success_message',
-            'error_status': {'error_code': '00000'},
-            'data': {
-                'post_id': updated_post.id,
-                'title': updated_post.title,
-                'content': updated_post.content,
-                'author': updated_post.author,
-                'updated_at': updated_post.updated_at
-            }
-        }, 200
     except Exception as e:
         return {
             'message': f'Failed to update post: {str(e)}',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '40000'}
+            'error_status': {'error_code': '40009'}
         }, 400
 
-@jwt_required()
-def delete_existing_post(post_id):
+def delete_existing_post(post_id, user_id):
+    """
+    Delete a post by its ID.
+    """
     try:
-        post = get_post_by_id(post_id)
-        if not post:
+        success = delete_post(post_id, user_id)
+        if success:
             return {
-                'message': 'Post not found.',
+                'message': 'Post deleted successfully.',
+                'status': True,
+                'type': 'success_message',
+                'error_status': {'error_code': '00000'}
+            }, 200
+        else:
+            return {
+                'message': 'Post not found or not authorized',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40020'}
+                'error_status': {'error_code': '40010'}
             }, 404
-
-        delete_post(post_id)
-
-        return {
-            'message': 'Post deleted successfully.',
-            'status': True,
-            'type': 'success_message',
-            'error_status': {'error_code': '00000'}
-        }, 200
     except Exception as e:
         return {
             'message': f'Failed to delete post: {str(e)}',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '40000'}
+            'error_status': {'error_code': '40011'}
         }, 400

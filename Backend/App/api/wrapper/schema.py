@@ -27,47 +27,50 @@ def add_user(username, email, password):
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}")
 
-# Post-related functions
-def get_post_by_id(post_id):
-    try:
-        post = Post.query.filter_by(id=post_id).first()
-        return post
-    except Exception as e:
-        raise Exception(f"Database error: {str(e)}")
+# Post Functions
 
-def create_post(title, content, author_id):
-    new_post = Post(title=title, content=content, author_id=author_id)
+def create_new_post(title, content, user_uid):
     try:
+        new_post = Post(title=title, content=content, user_uid=user_uid)
         db.session.add(new_post)
         db.session.commit()
         return new_post
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
+
+def get_post_by_id(post_id):
+    try:
+        post = Post.query.filter_by(uid=post_id).first()
+        return post
+    except Exception:
+        raise Exception("Database error")
 
 def update_post(post_id, title, content):
     try:
-        post = Post.query.filter_by(id=post_id).first()
+        post = Post.query.filter_by(uid=post_id).first()
         if post:
-            post.title = title
-            post.content = content
+            if title:
+                post.title = title
+            if content:
+                post.content = content
             db.session.commit()
-            return post
+            return True
         else:
-            raise Exception("Post not found")
-    except Exception as e:
+            return False
+    except Exception:
         db.session.rollback()
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
-def delete_post(post_id):
+def delete_post(post_id, user_uid):
     try:
-        post = Post.query.filter_by(id=post_id).first()
+        post = Post.query.filter_by(uid=post_id, user_uid=user_uid).first()
         if post:
             db.session.delete(post)
             db.session.commit()
-            return post
+            return True
         else:
-            raise Exception("Post not found")
-    except Exception as e:
+            return False
+    except Exception:
         db.session.rollback()
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")

@@ -1,7 +1,13 @@
 from flask import request
 from flask_restful import Resource
 from App.api.wrapper.utils import user_register, user_login, user_logout,fetch_post,create_new_post,update_existing_post,delete_existing_post
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required,get_jwt_identity
+from App.api.wrapper.utils import (
+    create_new_post, 
+    fetch_post, 
+    update_existing_post, 
+    delete_existing_post
+)
 
 class SomeProtectedResource(Resource):
     @jwt_required()
@@ -53,112 +59,92 @@ class LogoutResource(Resource):
 
 class PostResource(Resource):
     @jwt_required()
-    def get(self):
-        try:
-            post_id = request.args.get('id')
-            if not post_id:
-                return {
-                    'message': 'Post ID is required.',
-                    'status': False,
-                    'type': 'custom_error',
-                    'error_status': {'error_code': '40010', 'error_message': 'Missing required field: post_id'}
-                }, 400
-            data = {'post_id': post_id}
-            response_data, status_code = fetch_post(data)
-            if status_code == 404:
-                return {
-                    'message': 'Post not found.',
-                    'status': False,
-                    'type': 'resource_error',
-                    'error_status': {'error_code': '40020'}
-                }, 404
-            return response_data, status_code
-        except Exception as e:
-            return {
-                'message': 'Internal server error. Please try again later.',
-                'status': False,
-                'type': 'internal_error',
-                'error_status': {'error_code': '40000', 'error_message': str(e)}
-            }, 400
-
-    @jwt_required()
     def post(self):
+        """
+        Create a new post.
+        """
         try:
             data = request.get_json()
-            if not data.get('name') or not data.get('email') or not data.get('password'):
-                return {
-                    'message': 'Please provide name, email, and password.',
-                    'status': False,
-                    'type': 'validation_error',
-                    'error_status': {'error_code': '40001'}
-                }, 400
             response_data, status_code = create_new_post(data)
             return response_data, status_code
         except Exception as e:
             return {
-                'message': 'Internal server error. Please try again later.',
+                'message': f'Failed to create post: {str(e)}',
                 'status': False,
-                'type': 'internal_error',
-                'error_status': {'error_code': '40000', 'error_message': str(e)}
+                'type': 'custom_error',
+                'error_status': {'error_code': '40004'}
             }, 400
 
     @jwt_required()
-    def patch(self):
+    def get(self, post_id):
+        """
+        Fetch a post by its ID.
+        """
         try:
-            data = request.get_json()
-            post_id = data.get('post_id')
-            title = data.get('title')
-            content = data.get('content')
-            if not post_id or not title or not content:
+            if post_id is None:
                 return {
-                    'message': 'Post ID, title, and content are required.',
+                    'message': 'Post ID is required',
                     'status': False,
-                    'type': 'validation_error',
-                    'error_status': {'error_code': '40010', 'error_message': 'Missing required field(s): post_id, title, content'}
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40006'}
                 }, 400
-            response_data, status_code = update_existing_post(post_id, title, content)
-            if status_code == 404:
-                return {
-                    'message': 'Post not found.',
-                    'status': False,
-                    'type': 'resource_error',
-                    'error_status': {'error_code': '40020'}
-                }, 404
+
+            response_data, status_code = fetch_post(post_id)
             return response_data, status_code
         except Exception as e:
             return {
-                'message': 'Internal server error. Please try again later.',
+                'message': f'Failed to get post: {str(e)}',
                 'status': False,
-                'type': 'internal_error',
-                'error_status': {'error_code': '40000', 'error_message': str(e)}
+                'type': 'custom_error',
+                'error_status': {'error_code': '40005'}
             }, 400
 
     @jwt_required()
-    def delete(self):
+    def put(self, post_id):
+        """
+        Update a post by its ID.
+        """
         try:
-            data = request.get_json()
-            post_id = data.get('post_id')
-            if not post_id:
+            if post_id is None:
                 return {
-                    'message': 'Post ID is required.',
+                    'message': 'Post ID is required',
                     'status': False,
-                    'type': 'validation_error',
-                    'error_status': {'error_code': '40010', 'error_message': 'Missing required field: post_id'}
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40006'}
                 }, 400
-            response_data, status_code = delete_existing_post(post_id)
-            if status_code == 404:
-                return {
-                    'message': 'Post not found.',
-                    'status': False,
-                    'type': 'resource_error',
-                    'error_status': {'error_code': '40020'}
-                }, 404
+
+            data = request.get_json()
+            response_data, status_code = update_existing_post(post_id, data)
             return response_data, status_code
         except Exception as e:
             return {
-                'message': 'Internal server error. Please try again later.',
+                'message': f'Failed to update post: {str(e)}',
                 'status': False,
-                'type': 'internal_error',
-                'error_status': {'error_code': '40000', 'error_message': str(e)}
+                'type': 'custom_error',
+                'error_status': {'error_code': '40005'}
             }, 400
 
+    @jwt_required()
+    def delete(self, post_id):
+        """
+        Delete a post by its ID.
+        """
+        try:
+            if post_id is None:
+                return {
+                    'message': 'Post ID is required',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40006'}
+                }, 400
+
+            user_id = get_jwt_identity()
+            response_data, status_code = delete_existing_post(post_id, user_id)
+            return response_data, status_code
+        except Exception as e:
+            return {
+                'message': f'Failed to delete post: {str(e)}',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40005'}
+            }, 400
