@@ -1,6 +1,6 @@
 from flask import request
 from flask_restful import Resource
-from App.Api.wrapper.utils import user_register, login, logout
+from App.api.wrapper.utils import user_register, user_login, user_logout
 from flask_jwt_extended import jwt_required
 
 class SomeProtectedResource(Resource):
@@ -10,18 +10,42 @@ class SomeProtectedResource(Resource):
 
 class RegisterResource(Resource):
     def post(self):
-        data = request.get_json()
-        response_data, status_code = user_register(data)
-        return response_data, status_code
+        try:
+            data = request.get_json()
+            response_data, status_code = user_register(data)
+            return response_data, status_code
+        except Exception:
+            return {
+                'message': 'Registration failed',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40000'}
+            }, 400
 
 class LoginResource(Resource):
     def post(self):
-        data = request.get_json()
-        response_data, status_code = login(data)
-        return response_data, status_code
+        try:
+            data = request.get_json()
+            response_data, status_code = user_login(data)
+            return response_data, status_code
+        except Exception:
+            return {
+                'message': 'Login failed',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40000'}
+            }, 400
 
 class LogoutResource(Resource):
     @jwt_required()
     def post(self):
-        response_data, status_code = logout()
-        return response_data, status_code
+        try:
+            response_data, status_code = user_logout()
+            return response_data, status_code
+        except Exception:
+            return {
+                'message': 'Logout failed',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40000'}
+            }, 400
