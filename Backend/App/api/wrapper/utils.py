@@ -541,7 +541,14 @@ def get_posts(page, per_page, user_uid=None):
 
 def get_home_page_data(page, size, user_id=None):
     try:
-        posts, total_posts = schema_get_paginated_posts(page, size, user_id)
+        # Validate the page and size parameters
+        page = int(page)
+        size = int(size)
+        if page < 1 or size < 1:
+            raise ValueError("Page and size must be positive integers.")
+
+        # Retrieve paginated posts
+        posts, total_posts = schema_get_paginated_posts(page, size, user_uid=user_id)
 
         data = {
             "current_page": page,
@@ -550,7 +557,9 @@ def get_home_page_data(page, size, user_id=None):
             "total_posts": total_posts,
             "posts": [post_to_dict(post) for post in posts]
         }
+
         info_logger('get_home_page_data', 'Home page data retrieved successfully', page=page, size=size, user_id=user_id)
+        
         return {
             'message': 'Home page data retrieved successfully.',
             'status': True,
@@ -558,11 +567,21 @@ def get_home_page_data(page, size, user_id=None):
             'error_status': {'error_code': '00000'},
             'data': data
         }, 200
+    except ValueError as ve:
+        error_logger('get_home_page_data', 'Invalid pagination parameters', error=str(ve), page=page, size=size, user_id=user_id)
+        return {
+            'message': f'Invalid pagination parameters: {str(ve)}',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40016'}
+        }, 400
     except Exception as e:
-        error_logger('get_home_page_data', 'Failed to retrieve home page data', error=str(e))
+        # Log general errors
+        error_logger('get_home_page_data', 'Failed to retrieve home page data', error=str(e), page=page, size=size, user_id=user_id)
         return {
             'message': f'Failed to retrieve home page data: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40016'}
         }, 400
+

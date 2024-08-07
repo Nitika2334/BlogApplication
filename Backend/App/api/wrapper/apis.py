@@ -262,13 +262,29 @@ class HomePageResource(Resource):
     @jwt_required()
     def get(self):
         try:
+
             page = int(request.args.get('page', 1))
             size = int(request.args.get('size', 10))
-            user_id = request.args.get('user')
+            user_id = request.args.get('user', None)  
 
+            if page < 1 or size < 1:
+                raise ValueError("Page and size must be positive integers.")
+            
             info_logger('HomePageResource', 'Get home page data request received', page=page, size=size, user_id=user_id)
+            
+            
             response_data, status_code = get_home_page_data(page, size, user_id)
             return response_data, status_code
+        
+        except ValueError as ve:
+            error_logger('HomePageResource', 'Invalid pagination parameters', error=str(ve))
+            return {
+                'message': f'Invalid pagination parameters: {str(ve)}',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40016'}
+            }, 400
+        
         except Exception as e:
             error_logger('HomePageResource', 'Failed to retrieve home page data', error=str(e))
             return {

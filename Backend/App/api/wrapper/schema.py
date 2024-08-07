@@ -257,18 +257,28 @@ def delete_existing_comment(comment_id, user_uid):
 
 def get_paginated_posts(page, per_page, user_uid=None):
     try:
-        query = db.session.query(Post).order_by(desc(Post.created_at))  # Sort by creation date in descending order
+        page = int(page)
+        per_page = int(per_page)
+        if page < 1 or per_page < 1:
+            raise ValueError("Page and per_page must be positive integers.")
+
+        offset = (page - 1) * per_page
+
+        query = db.session.query(Post).order_by(desc(Post.created_at))
 
         if user_uid:
             query = query.filter(Post.user_uid == user_uid)
 
         total_posts = query.count()
-        posts = query.offset((page - 1) * per_page).limit(per_page).all()
 
-        # Updated logging for successful retrieval
+        posts = query.offset(offset).limit(per_page).all()
+
         info_logger('get_paginated_posts', 'Posts retrieved successfully', page=page, per_page=per_page, user_uid=user_uid)
+        
         return posts, total_posts
+    except ValueError as ve:
+        error_logger('get_paginated_posts', 'Invalid pagination parameters', error=str(ve), page=page, per_page=per_page, user_uid=user_uid)
+        raise ValueError(f"Invalid pagination parameters: {str(ve)}")
     except Exception as e:
-        # Updated logging for failure
         error_logger('get_paginated_posts', 'Failed to retrieve posts', error=str(e), page=page, per_page=per_page, user_uid=user_uid)
         raise Exception(f"Database error: {str(e)}")
