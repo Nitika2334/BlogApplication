@@ -10,9 +10,9 @@ from .schema import (
     get_user_by_username, get_user_by_email, add_user, create_new_comment, 
     get_comments_by_post_id, update_existing_comment, delete_existing_comment,
     create_post as schema_create_post, get_post_by_id as schema_get_post_by_id, 
-    update_post as schema_update_post, delete_post as schema_delete_post, 
-    get_paginated_posts as schema_get_paginated_posts
+    update_post as schema_update_post, delete_post as schema_delete_post
 )
+from App.api.logger import info_logger, error_logger
 
 REVOKED_TOKENS = {}
 
@@ -33,6 +33,7 @@ def user_register(data):
         password = data.get('password')
 
         if not username or not email or not password:
+            error_logger('user_register', 'Missing username, email, or password', data=data)
             return {
                 'message': 'Please provide username, email, and password.',
                 'status': False,
@@ -41,6 +42,7 @@ def user_register(data):
             }, 400
 
         if not validate_email(email):
+            error_logger('user_register', 'Invalid email format', email=email)
             return {
                 'message': 'Email format is invalid.',
                 'status': False,
@@ -49,6 +51,7 @@ def user_register(data):
             }, 400
 
         if not validate_password(password):
+            error_logger('user_register', 'Password does not meet criteria', password=password)
             return {
                 'message': 'Password does not meet criteria.',
                 'status': False,
@@ -56,8 +59,8 @@ def user_register(data):
                 'error_status': {'error_code': '40011'}
             }, 400
 
-        existing_user = get_user_by_username(username)
-        if existing_user:
+        if get_user_by_username(username):
+            error_logger('user_register', 'Username already exists', username=username)
             return {
                 'message': 'Username already exists.',
                 'status': False,
@@ -65,8 +68,8 @@ def user_register(data):
                 'error_status': {'error_code': '40002'}
             }, 400
 
-        existing_email = get_user_by_email(email)
-        if existing_email:
+        if get_user_by_email(email):
+            error_logger('user_register', 'Email already exists', email=email)
             return {
                 'message': 'Email already exists.',
                 'status': False,
@@ -80,6 +83,7 @@ def user_register(data):
         expires = datetime.timedelta(minutes=30)
         access_token = create_access_token(identity=new_user.uid, expires_delta=expires)
 
+        info_logger('user_register', 'User registered successfully', user_id=str(new_user.uid), username=new_user.username)
         return {
             'message': 'User registered successfully.',
             'status': True,
@@ -93,6 +97,7 @@ def user_register(data):
             }
         }, 200
     except Exception as e:
+        error_logger('user_register', 'Registration failed', error=str(e))
         return {
             'message': f'Registration failed: {str(e)}',
             'status': False,
@@ -110,6 +115,7 @@ def user_login(data):
             user_id = str(user.uid)
             expires = datetime.timedelta(minutes=120)
             access_token = create_access_token(identity=user.uid, expires_delta=expires)
+            info_logger('user_login', 'User logged in successfully', user_id=user_id)
             return {
                 'message': 'User logged in successfully',
                 'status': True,
@@ -122,6 +128,7 @@ def user_login(data):
                 }
             }, 200
         else:
+            error_logger('user_login', 'Invalid credentials', username=username)
             return {
                 'message': 'Invalid credentials',
                 'status': False,
@@ -129,6 +136,7 @@ def user_login(data):
                 'error_status': {'error_code': '40004'}
             }, 400
     except Exception as e:
+        error_logger('user_login', 'Login failed', error=str(e))
         return {
             'message': f'Login failed: {str(e)}',
             'status': False,
@@ -142,6 +150,7 @@ def user_logout():
         exp = get_jwt()['exp']  
         REVOKED_TOKENS[jti] = exp
 
+        info_logger('user_logout', 'User logged out successfully', jti=jti)
         return {
             'message': 'User logged out successfully',
             'status': True,
@@ -149,6 +158,7 @@ def user_logout():
             'error_status': {'error_code': '00000'}
         }, 200
     except Exception as e:
+        error_logger('user_logout', 'Logout failed', error=str(e))
         return {
             'message': f'Logout failed: {str(e)}',
             'status': False,
@@ -181,6 +191,7 @@ def create_comment(data, post_uid, user_uid):
     try:
         content = data.get('content')
         if not content:
+            error_logger('create_comment', 'Content is required', data=data)
             return {
                 'message': 'Content is required',
                 'status': False,
@@ -189,6 +200,7 @@ def create_comment(data, post_uid, user_uid):
             }, 400
         
         new_comment = create_new_comment(post_uid, user_uid, content)
+        info_logger('create_comment', 'Comment created successfully', comment_id=str(new_comment.uid), post_id=post_uid, user_id=user_uid)
         return {
             'message': 'Comment created successfully',
             'status': True,
@@ -203,6 +215,7 @@ def create_comment(data, post_uid, user_uid):
             }
         }, 200
     except Exception as e:
+        error_logger('create_comment', 'Failed to create comment', error=str(e))
         return {
             'message': f'Failed to create comment: {str(e)}',
             'status': False,
@@ -214,6 +227,7 @@ def get_comments(post_uid):
     try:
         comments = get_comments_by_post_id(post_uid)
         comments_list = [comment_to_dict(comment) for comment in comments]
+        info_logger('get_comments', 'Comments retrieved successfully', post_id=post_uid)
         return {
             'message': 'Comments retrieved successfully',
             'status': True,
@@ -224,261 +238,207 @@ def get_comments(post_uid):
             }
         }, 200
     except Exception as e:
+        error_logger('get_comments', 'Failed to get comments', error=str(e))
         return {
             'message': f'Failed to get comments: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40014'}
         }, 400
-    
-def update_comment(data, comment_id, user_id):
+
+def update_comment(data, comment_uid, user_uid):
     try:
         content = data.get('content')
         if not content:
+            error_logger('update_comment', 'Content is required', data=data)
             return {
                 'message': 'Content is required',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40012'}
             }, 400
-        
-        response_data, status_code = update_existing_comment(comment_id, content, user_id)
-        return response_data, status_code
+
+        existing_comment = update_existing_comment(comment_uid, content, user_uid)
+        info_logger('update_comment', 'Comment updated successfully', comment_id=comment_uid, user_id=user_uid)
+        return {
+            'message': 'Comment updated successfully',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'},
+            'data': {
+                'comment_id': comment_uid,
+                'content': existing_comment.content,
+                'updated_at': str(existing_comment.updated_at)
+            }
+        }, 200
     except Exception as e:
+        error_logger('update_comment', 'Failed to update comment', error=str(e))
         return {
             'message': f'Failed to update comment: {str(e)}',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40015'}
+        }, 400
+
+def delete_comment(comment_uid, user_uid):
+    try:
+        delete_existing_comment(comment_uid, user_uid)
+        info_logger('delete_comment', 'Comment deleted successfully', comment_id=comment_uid, user_id=user_uid)
+        return {
+            'message': 'Comment deleted successfully',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'}
+        }, 200
+    except Exception as e:
+        error_logger('delete_comment', 'Failed to delete comment', error=str(e))
+        return {
+            'message': f'Failed to delete comment: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40016'}
         }, 400
 
-def delete_comment(comment_id, user_id):
-    try:
-        response_data, status_code = delete_existing_comment(comment_id, user_id)
-        return response_data, status_code
-    except Exception as e:
-        return {
-            'message': f'Failed to delete comment: {str(e)}',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40018'}
-        }, 400
+# Posts
 
-# Post
-def post_to_dict(post):
-    return {
-        'uid': str(post.uid),
-        'title': post.title,
-        'content': post.content,
-        'user_uid': str(post.user_uid),
-        'created_at': post.created_at.isoformat(),
-        'updated_at': post.updated_at.isoformat(),
-        'image': post.image  
-    }
-
-def create_new_post(data):
+def create_post(data, user_uid):
     try:
         title = data.get('title')
         content = data.get('content')
-        image_file = request.files.get('image')
-
         if not title or not content:
+            error_logger('create_post', 'Title and content are required', data=data)
             return {
                 'message': 'Title and content are required',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40012'}
+                'error_status': {'error_code': '40017'}
             }, 400
 
-        image_url = None
-        if image_file:
-            image_url = save_image(image_file)
-
-        new_post = schema_create_post(title, content, get_jwt_identity(), image_url)
+        post = schema_create_post(user_uid, title, content)
+        info_logger('create_post', 'Post created successfully', post_id=str(post.uid), user_id=user_uid)
         return {
             'message': 'Post created successfully',
             'status': True,
             'type': 'success_message',
             'error_status': {'error_code': '00000'},
             'data': {
-                'post_id': str(new_post.uid),
-                'title': new_post.title,
-                'content': new_post.content,
-                'image_url': new_post.image
+                'post_id': str(post.uid),
+                'title': post.title,
+                'content': post.content,
+                'created_at': str(post.created_at)
             }
         }, 200
     except Exception as e:
+        error_logger('create_post', 'Failed to create post', error=str(e))
         return {
-            'message': f'Error creating post: {str(e)}',
+            'message': f'Failed to create post: {str(e)}',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '40000'}
+            'error_status': {'error_code': '40018'}
         }, 400
-    
-    
-def save_image(image_file, old_filename=None):
-    if not image_file or not allowed_file(image_file.filename):
-        return None
 
-    # Delete old image if it exists
-    if old_filename:
-        old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_filename)
-        if os.path.exists(old_image_path):
-            os.remove(old_image_path)
-
-    # Save the new image
-    filename = secure_filename(image_file.filename)
-    upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-    image_file.save(upload_path)
-    return filename
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'jpg', 'jpeg', 'png', 'gif'}
-
-def get_post(post_id):
+def get_post(post_uid):
     try:
-        post = schema_get_post_by_id(post_id)
-        if not post:
-            return {
-                'message': 'Post not found',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40008'}
-            }, 404
+        post = schema_get_post_by_id(post_uid)
         if post:
+            info_logger('get_post', 'Post retrieved successfully', post_id=post_uid)
             return {
                 'message': 'Post retrieved successfully',
                 'status': True,
                 'type': 'success_message',
                 'error_status': {'error_code': '00000'},
-                'data': post_to_dict(post)
+                'data': {
+                    'post_id': str(post.uid),
+                    'title': post.title,
+                    'content': post.content,
+                    'created_at': str(post.created_at),
+                    'updated_at': str(post.updated_at)
+                }
             }, 200
+        else:
+            error_logger('get_post', 'Post not found', post_id=post_uid)
+            return {
+                'message': 'Post not found',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40019'}
+            }, 404
     except Exception as e:
+        error_logger('get_post', 'Failed to get post', error=str(e))
         return {
-            'message': f'Error retrieving post: {str(e)}',
+            'message': f'Failed to get post: {str(e)}',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40020'}
+        }, 400
+
+def update_post(data, post_uid, user_uid):
+    try:
+        title = data.get('title')
+        content = data.get('content')
+        if not title or not content:
+            error_logger('update_post', 'Title and content are required', data=data)
+            return {
+                'message': 'Title and content are required',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40017'}
+            }, 400
+
+        updated_post = schema_update_post(post_uid, title, content, user_uid)
+        info_logger('update_post', 'Post updated successfully', post_id=post_uid, user_id=user_uid)
+        return {
+            'message': 'Post updated successfully',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'},
+            'data': {
+                'post_id': str(updated_post.uid),
+                'title': updated_post.title,
+                'content': updated_post.content,
+                'updated_at': str(updated_post.updated_at)
+            }
+        }, 200
+    except Exception as e:
+        error_logger('update_post', 'Failed to update post', error=str(e))
+        return {
+            'message': f'Failed to update post: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40021'}
         }, 400
 
-def update_post(post_id, data):
+def delete_post(post_uid, user_uid):
     try:
-        title = data.get('title')
-        content = data.get('content')
-        image_file = request.files.get('image')
-        user_id = get_jwt_identity()
-
-        if not title and not content and not image_file:
-            return {
-                'message': 'Title, content, or image is required.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40007'}
-            }, 400
-
-        post = schema_get_post_by_id(post_id)
-        if not post:
-            return {
-                'message': 'Post not found',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40008'}
-            }, 404
-
-        if str(post.user_uid) != user_id:
-            return {
-                'message': 'You are not authorized to update this post.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40006'}
-            }, 400
-
-        # Handle updating image
-        if image_file:
-            old_image_url = post.image
-            image_url = save_image(image_file, old_image_url)
-            success = schema_update_post(post_id, title, content, image_url)
-        else:
-            success = schema_update_post(post_id, title, content)
-
-        if success:
-            return {
-                'message': 'Post updated successfully.',
-                'status': True,
-                'type': 'success_message',
-                'error_status': {'error_code': '00000'}
-            }, 200
-        else:
-            return {
-                'message': 'Failed to update post.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40009'}
-            }, 400
-    except Exception as e:
+        schema_delete_post(post_uid, user_uid)
+        info_logger('delete_post', 'Post deleted successfully', post_id=post_uid, user_id=user_uid)
         return {
-            'message': f'Failed to update post: {str(e)}',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40009'}
-        }, 400
-
-
-
-def delete_post(post_id, user_id):
-    try:
-        post = schema_get_post_by_id(post_id)
-        if not post:
-            return {
-                'message': 'Post not found',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40008'}
-            }, 404
-
-        if str(post.user_uid) != user_id:
-            return {
-                'message': 'You are not authorized to delete this post.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40006'}
-            }, 400
-
-        old_image_url = post.image
-        success = schema_delete_post(post_id, user_id)
-
-        if success:
-            # Delete the image file
-            if old_image_url:
-                image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_image_url)
-                if os.path.exists(image_path):
-                    os.remove(image_path)
-
-            return {
-                'message': 'Post deleted successfully.',
-                'status': True,
-                'type': 'success_message',
-                'error_status': {'error_code': '00000'}
-            }, 200
-        else:
-            return {
-                'message': 'Failed to delete post.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40010'}
-            }, 400
+            'message': 'Post deleted successfully',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'}
+        }, 200
     except Exception as e:
+        error_logger('delete_post', 'Failed to delete post', error=str(e))
         return {
             'message': f'Failed to delete post: {str(e)}',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '40011'}
+            'error_status': {'error_code': '40022'}
         }, 400
 
-def get_posts(page, per_page, user_uid=None):
+def get_paginated_posts(page, per_page):
     try:
-        posts, total_posts = schema_get_paginated_posts(page, per_page, user_uid)
-        posts_list = [post_to_dict(post) for post in posts]
+        posts = schema_get_paginated_posts(page, per_page)
+        posts_list = [{
+            'post_id': str(post.uid),
+            'title': post.title,
+            'content': post.content,
+            'created_at': str(post.created_at),
+            'updated_at': str(post.updated_at)
+        } for post in posts]
+
+        info_logger('get_paginated_posts', 'Posts retrieved successfully', page=page, per_page=per_page)
         return {
             'message': 'Posts retrieved successfully',
             'status': True,
@@ -489,36 +449,10 @@ def get_posts(page, per_page, user_uid=None):
             }
         }, 200
     except Exception as e:
+        error_logger('get_paginated_posts', 'Failed to get posts', error=str(e))
         return {
-            'message': f'Error retrieving posts: {str(e)}',
+            'message': f'Failed to get posts: {str(e)}',
             'status': False,
             'type': 'custom_error',
-            'error_status': {'error_code': '40024'}
-        }, 400
-
-def get_home_page_data(page, size, user_id=None):
-    try:
-        posts, total_posts = schema_get_paginated_posts(page, size, user_id)
-
-        data = {
-            "current_page": page,
-            "page_size": size,
-            "total_pages": (total_posts + size - 1) // size,
-            "total_posts": total_posts,
-            "posts": [post_to_dict(post) for post in posts]
-        }
-
-        return {
-            'message': 'Home page data retrieved successfully.',
-            'status': True,
-            'type': 'success_message',
-            'error_status': {'error_code': '00000'},
-            'data': data
-        }, 200
-    except Exception as e:
-        return {
-            'message': f'Failed to retrieve home page data: {str(e)}',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40016'}
+            'error_status': {'error_code': '40023'}
         }, 400
