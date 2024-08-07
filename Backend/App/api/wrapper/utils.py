@@ -201,7 +201,7 @@ def create_comment(data, post_uid, user_uid):
                 'content': new_comment.content,
                 'created_at': str(new_comment.created_at)
             }
-        }, 201
+        }, 200
     except Exception as e:
         return {
             'message': f'Failed to create comment: {str(e)}',
@@ -306,7 +306,7 @@ def create_new_post(data):
                 'content': new_post.content,
                 'image_url': new_post.image
             }
-        }, 201
+        }, 200
     except Exception as e:
         return {
             'message': f'Error creating post: {str(e)}',
