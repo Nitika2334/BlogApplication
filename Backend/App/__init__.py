@@ -30,7 +30,6 @@ def create_app():
     with app.app_context():
         db.create_all() 
     
-
     from App.api.route import route
     app.register_blueprint(route,url_prefix='/api/v1')
     return app
