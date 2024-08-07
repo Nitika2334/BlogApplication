@@ -40,7 +40,8 @@ def create_post(title, content, user_uid, image=None):
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}")
 
-def update_post(post_id, title, content):
+
+def update_post(post_id, title, content, image=None):
     try:
         post = Post.query.filter_by(uid=post_id).first()
         if post:
@@ -48,6 +49,8 @@ def update_post(post_id, title, content):
                 post.title = title
             if content:
                 post.content = content
+            if image is not None:
+                post.image = image
             db.session.commit()
             return True
         else:
@@ -55,6 +58,7 @@ def update_post(post_id, title, content):
     except Exception as e:
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}")
+
 
 
 def get_post_by_id(post_id):

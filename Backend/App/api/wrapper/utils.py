@@ -280,7 +280,7 @@ def create_new_post(data):
     try:
         title = data.get('title')
         content = data.get('content')
-        image_file = request.files.get('image')  
+        image_file = request.files.get('image')
 
         if not title or not content:
             return {
@@ -304,7 +304,7 @@ def create_new_post(data):
                 'post_id': str(new_post.uid),
                 'title': new_post.title,
                 'content': new_post.content,
-                'image_url': new_post.image  
+                'image_url': new_post.image
             }
         }, 201
     except Exception as e:
@@ -314,19 +314,26 @@ def create_new_post(data):
             'type': 'custom_error',
             'error_status': {'error_code': '40000'}
         }, 400
-
-def save_image(image_file):
+    
+    
+def save_image(image_file, old_filename=None):
     if not image_file or not allowed_file(image_file.filename):
         return None
 
+    # Delete old image if it exists
+    if old_filename:
+        old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_filename)
+        if os.path.exists(old_image_path):
+            os.remove(old_image_path)
+
+    # Save the new image
     filename = secure_filename(image_file.filename)
     upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
     image_file.save(upload_path)
     return filename
 
 def allowed_file(filename):
-    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'jpg', 'jpeg', 'png', 'gif'}
 
 def get_post(post_id):
     try:
@@ -358,18 +365,18 @@ def update_post(post_id, data):
     try:
         title = data.get('title')
         content = data.get('content')
-        user_id = get_jwt_identity()  
+        image_file = request.files.get('image')
+        user_id = get_jwt_identity()
 
-        if not title and not content:
+        if not title and not content and not image_file:
             return {
-                'message': 'Title or content is required.',
+                'message': 'Title, content, or image is required.',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40007'}
             }, 400
 
         post = schema_get_post_by_id(post_id)
-
         if not post:
             return {
                 'message': 'Post not found',
@@ -378,7 +385,6 @@ def update_post(post_id, data):
                 'error_status': {'error_code': '40008'}
             }, 404
 
-        # Check if the current user is the owner of the post
         if str(post.user_uid) != user_id:
             return {
                 'message': 'You are not authorized to update this post.',
@@ -387,7 +393,13 @@ def update_post(post_id, data):
                 'error_status': {'error_code': '40006'}
             }, 400
 
-        success = schema_update_post(post_id, title, content)
+        # Handle updating image
+        if image_file:
+            old_image_url = post.image
+            image_url = save_image(image_file, old_image_url)
+            success = schema_update_post(post_id, title, content, image_url)
+        else:
+            success = schema_update_post(post_id, title, content)
 
         if success:
             return {
@@ -413,10 +425,9 @@ def update_post(post_id, data):
 
 
 
-def delete_post(post_id,user_id):
+def delete_post(post_id, user_id):
     try:
         post = schema_get_post_by_id(post_id)
-
         if not post:
             return {
                 'message': 'Post not found',
@@ -433,8 +444,16 @@ def delete_post(post_id,user_id):
                 'error_status': {'error_code': '40006'}
             }, 400
 
+        old_image_url = post.image
         success = schema_delete_post(post_id, user_id)
+
         if success:
+            # Delete the image file
+            if old_image_url:
+                image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_image_url)
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+
             return {
                 'message': 'Post deleted successfully.',
                 'status': True,
