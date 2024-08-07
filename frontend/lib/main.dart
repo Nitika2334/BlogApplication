@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/comments_page/view_model/comments_view_model.dart';
 import 'package:frontend/screens/home_page/view_model/home_view_model.dart';
 import 'package:frontend/screens/home_page/views/home_page.dart';
 
@@ -23,6 +24,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LoginController()),
         ChangeNotifierProvider(create: (_) => SignupController()),
         ChangeNotifierProvider(create: (_) => PostViewModel()),
+        ChangeNotifierProvider(create: (context) => CommentsViewModel()),
       ],
       child: MaterialApp.router(
         title: 'Flutter Demo',

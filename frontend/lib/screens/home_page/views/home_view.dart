@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../components/post_card.dart';
+import '../../comments_page/views/comments_view.dart';
 import '../view_model/home_view_model.dart';
 
 class HomeView extends StatelessWidget {
@@ -34,11 +35,17 @@ class HomeView extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final post = postViewModel.posts[index];
                       return PostCard(
-                        content: post.content,
-                        imageUrl: 'https://i.redd.it/n6fd1y3tbmb51.jpg',
-                        username: 'John',
-                        userProfileUrl: 'https://img.goodfon.com/wallpaper/big/0/48/paris-city-night-scenery-digital-art-4k.webp',
-                        datePosted: '24-oct-2024', // Placeholder date
+                        username: 'John Doe',
+                        userProfileUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMlresTFqYp-__qOdruWQkL6Xxyd0Fm1cj2Q&s',
+                        datePosted: 'August 7, 2024',
+                        content: 'This is a sample post content.',
+                        imageUrl: 'https://c4.wallpaperflare.com/wallpaper/44/145/123/starry-night-sky-night-starry-night-wallpaper-preview.jpg',
+                        onCommentIconTapped: () {
+                          showModalBottomSheet(
+                            context: context,
+                            builder: (context) => CommentsBottomSheet(),
+                          );
+                        },
                       );
                     },
                   ),

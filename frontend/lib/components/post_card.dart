@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/comments_page/views/comments_view.dart';
 
 class PostCard extends StatelessWidget {
   final String username;
@@ -6,6 +7,7 @@ class PostCard extends StatelessWidget {
   final String datePosted;
   final String content;
   final String imageUrl;
+  final VoidCallback onCommentIconTapped; // Add a callback for the comment icon tap
 
   const PostCard({
     super.key,
@@ -14,6 +16,7 @@ class PostCard extends StatelessWidget {
     required this.datePosted,
     required this.content,
     required this.imageUrl,
+    required this.onCommentIconTapped, // Add the callback to the constructor
   });
 
   @override
@@ -82,8 +85,13 @@ class PostCard extends StatelessWidget {
                       SizedBox(width: 2.0),
                       Text('199', style: TextStyle(fontSize: 15),),
                       SizedBox(width: 12.0),
-                      Image.asset(
-                        'assets/images/comment_icon.png',
+                      InkWell(
+                        onTap: onCommentIconTapped, // Use the callback
+                        child: Image.asset(
+                          'assets/images/comment_icon.png',
+                          width: 24, // Adjust size if needed
+                          height: 24, // Adjust size if needed
+                        ),
                       ),
                       SizedBox(width: 3.0),
                       Text('10 comments', style: TextStyle(fontSize: 15),),
@@ -102,7 +110,6 @@ class PostCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 7.0),
-
               ],
             ),
           ),
