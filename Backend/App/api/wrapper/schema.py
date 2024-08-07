@@ -1,4 +1,6 @@
+from sqlalchemy import desc
 from App.Models.User.UserModel import User
+from App.Models.Post.PostModel import Post
 from App.Models.Comment.CommentModel import Comment
 from App import db
 
@@ -25,7 +27,98 @@ def add_user(username, email, password):
     except Exception as e:
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}")
-    
+
+
+# Posts
+def create_post(title, content, user_uid, image=None):
+    try:
+        new_post = Post(title=title, content=content, user_uid=user_uid, image=image)
+        db.session.add(new_post)
+        db.session.commit()
+        return new_post
+    except Exception as e:
+        db.session.rollback()
+        raise Exception(f"Database error: {str(e)}")
+
+def update_post(post_id, title, content):
+    try:
+        post = Post.query.filter_by(uid=post_id).first()
+        if post:
+            if title:
+                post.title = title
+            if content:
+                post.content = content
+            db.session.commit()
+            return True
+        else:
+            return False
+    except Exception as e:
+        db.session.rollback()
+        raise Exception(f"Database error: {str(e)}")
+
+
+def get_post_by_id(post_id):
+    try:
+        return Post.query.filter_by(uid=post_id).first()
+    except Exception as e:
+        db.session.rollback()
+        raise Exception(f"Database error: {str(e)}")
+
+def save_image(image_file, filename):
+    try:
+        image_path = f"App/api/uploads/{filename}"
+        image_file.save(image_path)
+        return filename
+    except Exception as e:
+        db.session.rollback()
+        raise Exception(f"Database error: {str(e)}")
+
+def post_to_dict(post):
+    return {
+        'uid': str(post.uid),
+        'title': post.title,
+        'content': post.content,
+        'user_uid': str(post.user_uid),
+        'created_at': post.created_at.isoformat(),
+        'updated_at': post.updated_at.isoformat(),
+        'image': post.image  # Correct field name
+    }
+
+def get_post(post_id):
+    try:
+        post = get_post_by_id(post_id)
+        return {
+            'message': 'Post retrieved successfully',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'},
+            'data': post_to_dict(post)
+        }, 200
+    except Exception as e:
+        return {
+            'message': f'Error retrieving post: {str(e)}',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40021'}
+        }, 400
+
+
+
+def delete_post(post_id, user_uid):
+    try:
+        post = Post.query.filter_by(uid=post_id).first()
+        if not post:
+            return False
+
+        if str(post.user_uid) != user_uid:
+            return False
+
+        db.session.delete(post)
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        raise Exception(f"Database error: {str(e)}")
 
 #Comments    
 
@@ -107,3 +200,17 @@ def delete_existing_comment(comment_id, user_uid):
     except Exception as e:
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}") 
+
+
+def get_paginated_posts(page, per_page, user_uid=None):
+    query = db.session.query(Post).order_by(desc(Post.created_at))  # Sort by creation date in descending order
+
+    if user_uid:
+        query = query.filter(Post.user_uid == user_uid)
+
+    total_posts = query.count()
+    posts = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    return posts, total_posts
+
+
