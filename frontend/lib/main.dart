@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/home_page/views/home_page.dart';
 
 import 'package:frontend/screens/login_page/view_model/login_view_model.dart';
 import 'package:frontend/screens/login_page/views/login_page.dart';
@@ -51,18 +52,3 @@ class MyApp extends StatelessWidget {
   );
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Home Page'),
-      ),
-      body: Center(
-        child: Text('Welcome to Home Page'),
-      ),
-    );
-  }
-}

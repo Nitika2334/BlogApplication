@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user.dart';
 
@@ -13,7 +14,6 @@ class LoginController extends ChangeNotifier {
   String _message = "";
 
   Future<void> submit(BuildContext context) async {
-
     passwordError = false;
 
     User user = User(username: username.text.trim(), password: password.text.trim());
@@ -75,6 +75,8 @@ class LoginController extends ChangeNotifier {
       final response = await dio.post(apiUrl, data: requestData);
 
       if (response.statusCode == 200) {
+        String token = response.data['data']['access_token'];
+        await saveCredentials(user.username!, token);
         return true;
       } else {
         return false;
@@ -82,6 +84,14 @@ class LoginController extends ChangeNotifier {
     } catch (e) {
       return false;
     }
+  }
+
+  Future<void> saveCredentials(String username, String token) async {
+    var prefs = await SharedPreferences.getInstance();
+    await prefs.setString("username", username);
+    await prefs.setString("access_token", token);
+    print("Saved username: $username");
+    print("Saved token: $token");
   }
 
   Future<void> showMessage({required BuildContext context, required String title, required String message}) async {
