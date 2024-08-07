@@ -14,9 +14,9 @@ class RegisterResource(Resource):
             data = request.get_json()
             response_data, status_code = user_register(data)
             return response_data, status_code
-        except Exception:
+        except Exception as e:
             return {
-                'message': 'Registration failed',
+                'message': f'Registration failed: {str(e)}',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40003'}
@@ -28,9 +28,9 @@ class LoginResource(Resource):
             data = request.get_json()
             response_data, status_code = user_login(data)
             return response_data, status_code
-        except Exception:
+        except Exception as e:
             return {
-                'message': 'Login failed',
+                'message': f'Login failed: {str(e)}',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40003'}
@@ -42,9 +42,9 @@ class LogoutResource(Resource):
         try:
             response_data, status_code = user_logout()
             return response_data, status_code
-        except Exception:
+        except Exception as e:
             return {
-                'message': 'Logout failed',
+                'message': f'Logout failed: {str(e)}',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40003'}
@@ -65,9 +65,9 @@ class CommentResource(Resource):
 
             response_data, status_code = get_comments(post_id)
             return response_data, status_code
-        except Exception:
+        except Exception as e:
             return {
-                'message': 'Failed to get comments',
+                'message': f'Failed to get comments: {str(e)}',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'},
@@ -83,14 +83,14 @@ class CommentResource(Resource):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40006'}
             }, 400
-            
+
             user_id = get_jwt_identity()
             data = request.get_json()
             response_data, status_code = create_comment(data, post_id, user_id)
             return response_data, status_code
-        except Exception:
+        except Exception as e:
             return {
-                'message': 'Failed to create comment',
+                'message': f'Failed to create comment: {str(e)}',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'}
@@ -108,11 +108,12 @@ class CommentResource(Resource):
                     }, 400
             
             data = request.get_json()
-            response_data, status_code = update_comment(data, comment_id)
+            user_id = get_jwt_identity()
+            response_data, status_code = update_comment(data, comment_id, user_id)
             return response_data, status_code
-        except Exception:
+        except Exception as e:
             return {
-                'message': 'Failed to update comment',
+                'message': f'Failed to update comment: {str(e)}',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'},
@@ -132,9 +133,9 @@ class CommentResource(Resource):
             user_id = get_jwt_identity()
             response_data, status_code = delete_comment(comment_id, user_id)
             return response_data, status_code
-        except Exception:
+        except Exception as e:
             return {
-                'message': 'Failed to delete comment',
+                'message': f'Failed to delete comment: {str(e)}',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'},

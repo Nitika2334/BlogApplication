@@ -83,9 +83,9 @@ def user_register(data):
                 'email': new_user.email
             }
         }, 200
-    except Exception:
+    except Exception as e:
         return {
-            'message': 'Registration failed',
+            'message': f'Registration failed: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40000'}
@@ -122,9 +122,9 @@ def user_login(data):
                 'error_status': {'error_code': '40004'}
             }
             return response_data, 400
-    except Exception:
+    except Exception as e:
         response_data = {
-            'message': 'Login failed',
+            'message': f'Login failed: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40000'}
@@ -145,10 +145,10 @@ def user_logout():
             'error_status': {'error_code': '00000'}
         }
         return response_data, 200
-    except Exception:
+    except Exception as e:
         
         response_data = {
-            'message': 'Logout failed',
+            'message': f'Logout failed: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40005'}
@@ -204,9 +204,9 @@ def create_comment(data, post_uid, user_uid):
                 'created_at': str(new_comment.created_at)
             }
         }, 201
-    except Exception:
+    except Exception as e:
         return {
-            'message': 'Failed to create comment',
+            'message': f'Failed to create comment: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40013'}
@@ -226,15 +226,15 @@ def get_comments(post_uid):
                 'comments': comments_list
             }
         }, 200
-    except Exception:
+    except Exception as e:
         return {
-            'message': 'Failed to get comments',
+            'message': f'Failed to get comments: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40014'}
         }, 400
     
-def update_comment(data, comment_id):
+def update_comment(data, comment_id, user_id):
     try:
         content = data.get('content')
         if not content:
@@ -245,25 +245,11 @@ def update_comment(data, comment_id):
                 'error_status': {'error_code': '40012'}
             }, 400
         
-        success = update_existing_comment(comment_id, content)
-        
-        if success:
-            return {
-                'message': 'Comment updated successfully',
-                'status': True,
-                'type': 'success_message',
-                'error_status': {'error_code': '00000'}
-            }, 200
-        else:
-            return {
-                'message': 'Comment not found',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40015'}
-            }, 404
-    except Exception:
+        response_data, status_code = update_existing_comment(comment_id, content, user_id)
+        return response_data, status_code
+    except Exception as e:
         return {
-            'message': 'Failed to update comment',
+            'message': f'Failed to update comment: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40016'}
@@ -271,24 +257,11 @@ def update_comment(data, comment_id):
 
 def delete_comment(comment_id, user_id):
     try:
-        success = delete_existing_comment(comment_id, user_id)    
-        if success:
-            return {
-                'message': 'Comment deleted successfully',
-                'status': True,
-                'type': 'success_message',
-                'error_status': {'error_code': '00000'}
-            }, 200
-        else:
-            return {
-                'message': 'Comment not found or not authorized',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40017'}
-            }, 404
-    except Exception:
+        response_data, status_code = delete_existing_comment(comment_id, user_id)
+        return response_data, status_code
+    except Exception as e:
         return {
-            'message': 'Failed to delete comment',
+            'message': f'Failed to delete comment: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40018'}
