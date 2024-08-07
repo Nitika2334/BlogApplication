@@ -245,7 +245,7 @@ def update_comment(data, comment_id, user_id):
                 'error_status': {'error_code': '40012'}
             }, 400
         
-        response_data, status_code = update_existing_comment(comment_id, content, user_id)
+        response_data, status_code = update_existing_comment(comment_id, data, user_id)
         return response_data, status_code
     except Exception as e:
         return {

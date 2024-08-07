@@ -46,7 +46,7 @@ def create_new_comment(post_uid, user_uid, content):
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}")
 
-def update_existing_comment(comment_id, user_uid, updated_data):
+def update_existing_comment(comment_id, data, user_uid):
     try:
         comment = Comment.query.filter_by(uid=comment_id).first()
         if not comment:
@@ -65,7 +65,7 @@ def update_existing_comment(comment_id, user_uid, updated_data):
                 'error_status': {'error_code': '40017'}
             }, 400
 
-        comment.content = updated_data.get('content', comment.content)
+        comment.content = data.get('content', comment.content)
         db.session.commit()
         return {
             'message': 'Comment updated successfully.',
