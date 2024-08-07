@@ -254,3 +254,22 @@ def delete_existing_comment(comment_id, user_uid):
         db.session.rollback()
         error_logger('delete_existing_comment', 'Failed to delete comment', error=str(e), comment_id=comment_id)
         raise Exception(f"Database error: {str(e)}")
+
+
+def get_paginated_posts(page, per_page, user_uid=None):
+    try:
+        query = db.session.query(Post).order_by(desc(Post.created_at))  # Sort by creation date in descending order
+
+        if user_uid:
+            query = query.filter(Post.user_uid == user_uid)
+
+        total_posts = query.count()
+        posts = query.offset((page - 1) * per_page).limit(per_page).all()
+
+        # Updated logging for successful retrieval
+        info_logger('get_paginated_posts', 'Posts retrieved successfully', page=page, per_page=per_page, user_uid=user_uid)
+        return posts, total_posts
+    except Exception as e:
+        # Updated logging for failure
+        error_logger('get_paginated_posts', 'Failed to retrieve posts', error=str(e), page=page, per_page=per_page, user_uid=user_uid)
+        raise Exception(f"Database error: {str(e)}")

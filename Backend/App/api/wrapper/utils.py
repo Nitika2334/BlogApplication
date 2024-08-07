@@ -10,7 +10,8 @@ from .schema import (
     get_user_by_username, get_user_by_email, add_user, create_new_comment, 
     get_comments_by_post_id, update_existing_comment, delete_existing_comment,
     create_post as schema_create_post, get_post_by_id as schema_get_post_by_id, 
-    update_post as schema_update_post, delete_post as schema_delete_post
+    update_post as schema_update_post, delete_post as schema_delete_post, 
+    get_paginated_posts as schema_get_paginated_posts
 )
 from App.api.logger import info_logger, error_logger
 
