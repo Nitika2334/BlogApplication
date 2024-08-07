@@ -3,12 +3,14 @@ from App.Models.User.UserModel import User
 from App.Models.Post.PostModel import Post
 from App.Models.Comment.CommentModel import Comment
 from App import db
+from App.api.logger import logger
 
 def get_user_by_username(username):
     try:
         user = User.query.filter_by(username=username).first()
         return user
     except Exception as e:
+        logger.error(f"Error in get_user_by_username: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
 
 def get_user_by_email(email):
@@ -16,6 +18,7 @@ def get_user_by_email(email):
         user = User.query.filter_by(email=email).first()
         return user
     except Exception as e:
+        logger.error(f"Error in get_user_by_email: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
 
 def add_user(username, email, password):
@@ -26,10 +29,9 @@ def add_user(username, email, password):
         return new_user
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error in add_user: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
 
-
-# Posts
 def create_post(title, content, user_uid, image=None):
     try:
         new_post = Post(title=title, content=content, user_uid=user_uid, image=image)
@@ -38,6 +40,7 @@ def create_post(title, content, user_uid, image=None):
         return new_post
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error in create_post: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
 
 def update_post(post_id, title, content):
@@ -54,14 +57,14 @@ def update_post(post_id, title, content):
             return False
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error in update_post: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
-
 
 def get_post_by_id(post_id):
     try:
         return Post.query.filter_by(uid=post_id).first()
     except Exception as e:
-        db.session.rollback()
+        logger.error(f"Error in get_post_by_id: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
 
 def save_image(image_file, filename):
@@ -70,7 +73,7 @@ def save_image(image_file, filename):
         image_file.save(image_path)
         return filename
     except Exception as e:
-        db.session.rollback()
+        logger.error(f"Error in save_image: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
 
 def post_to_dict(post):
@@ -81,7 +84,7 @@ def post_to_dict(post):
         'user_uid': str(post.user_uid),
         'created_at': post.created_at.isoformat(),
         'updated_at': post.updated_at.isoformat(),
-        'image': post.image  # Correct field name
+        'image': post.image
     }
 
 def get_post(post_id):
@@ -95,14 +98,13 @@ def get_post(post_id):
             'data': post_to_dict(post)
         }, 200
     except Exception as e:
+        logger.error(f"Error in get_post: {str(e)}")
         return {
             'message': f'Error retrieving post: {str(e)}',
             'status': False,
             'type': 'custom_error',
             'error_status': {'error_code': '40021'}
         }, 400
-
-
 
 def delete_post(post_id, user_uid):
     try:
@@ -118,25 +120,26 @@ def delete_post(post_id, user_uid):
         return True
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error in delete_post: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
-
-#Comments    
 
 def get_comments_by_post_id(post_uid):
     try:
         comments = Comment.query.filter_by(post_uid=post_uid).all()
         return comments
     except Exception as e:
+        logger.error(f"Error in get_comments_by_post_id: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
 
 def create_new_comment(post_uid, user_uid, content):
-    try:  
+    try:
         new_comment = Comment(content=content, user_uid=user_uid, post_uid=post_uid)
         db.session.add(new_comment)
         db.session.commit()
         return new_comment
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error in create_new_comment: {str(e)}")
         raise Exception(f"Database error: {str(e)}")
 
 def update_existing_comment(comment_id, user_uid, updated_data):
@@ -168,7 +171,8 @@ def update_existing_comment(comment_id, user_uid, updated_data):
         }, 200
     except Exception as e:
         db.session.rollback()
-        raise Exception(f"Database error: {str(e)}") 
+        logger.error(f"Error in update_existing_comment: {str(e)}")
+        raise Exception(f"Database error: {str(e)}")
 
 def delete_existing_comment(comment_id, user_uid):
     try:
@@ -199,18 +203,20 @@ def delete_existing_comment(comment_id, user_uid):
         }, 200
     except Exception as e:
         db.session.rollback()
-        raise Exception(f"Database error: {str(e)}") 
-
+        logger.error(f"Error in delete_existing_comment: {str(e)}")
+        raise Exception(f"Database error: {str(e)}")
 
 def get_paginated_posts(page, per_page, user_uid=None):
-    query = db.session.query(Post).order_by(desc(Post.created_at))  # Sort by creation date in descending order
+    try:
+        query = db.session.query(Post).order_by(desc(Post.created_at))
 
-    if user_uid:
-        query = query.filter(Post.user_uid == user_uid)
+        if user_uid:
+            query = query.filter(Post.user_uid == user_uid)
 
-    total_posts = query.count()
-    posts = query.offset((page - 1) * per_page).limit(per_page).all()
+        total_posts = query.count()
+        posts = query.offset((page - 1) * per_page).limit(per_page).all()
 
-    return posts, total_posts
-
-
+        return posts, total_posts
+    except Exception as e:
+        logger.error(f"Error in get_paginated_posts: {str(e)}")
+        raise Exception(f"Database error: {str(e)}")

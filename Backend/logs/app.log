@@ -1,0 +1,18 @@
+2024-08-07 16:54:55,011 - AppLogger - INFO - RegisterResource endpoint added: /register
+2024-08-07 16:54:55,011 - AppLogger - INFO - LoginResource endpoint added: /login
+2024-08-07 16:54:55,011 - AppLogger - INFO - LogoutResource endpoint added: /logout
+2024-08-07 16:54:55,011 - AppLogger - INFO - HomePageResource endpoint added: /home
+2024-08-07 16:54:55,011 - AppLogger - INFO - PostResource endpoint added: /post and /post/<uuid:post_id>
+2024-08-07 16:54:55,011 - AppLogger - INFO - CommentResource endpoint added: /posts/<uuid:post_id>/comments and /comments/<uuid:comment_id>
+2024-08-07 16:54:55,616 - AppLogger - INFO - RegisterResource endpoint added: /register
+2024-08-07 16:54:55,616 - AppLogger - INFO - LoginResource endpoint added: /login
+2024-08-07 16:54:55,616 - AppLogger - INFO - LogoutResource endpoint added: /logout
+2024-08-07 16:54:55,616 - AppLogger - INFO - HomePageResource endpoint added: /home
+2024-08-07 16:54:55,616 - AppLogger - INFO - PostResource endpoint added: /post and /post/<uuid:post_id>
+2024-08-07 16:54:55,616 - AppLogger - INFO - CommentResource endpoint added: /posts/<uuid:post_id>/comments and /comments/<uuid:comment_id>
+2024-08-07 16:55:02,410 - AppLogger - INFO - RegisterResource endpoint added: /register
+2024-08-07 16:55:02,410 - AppLogger - INFO - LoginResource endpoint added: /login
+2024-08-07 16:55:02,411 - AppLogger - INFO - LogoutResource endpoint added: /logout
+2024-08-07 16:55:02,411 - AppLogger - INFO - HomePageResource endpoint added: /home
+2024-08-07 16:55:02,411 - AppLogger - INFO - PostResource endpoint added: /post and /post/<uuid:post_id>
+2024-08-07 16:55:02,411 - AppLogger - INFO - CommentResource endpoint added: /posts/<uuid:post_id>/comments and /comments/<uuid:comment_id>
