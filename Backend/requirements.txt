@@ -1,3 +1,9 @@
-Flask==2.0.2
-Flask-SQLAlchemy==2.5.1
-psycopg2-binary==2.9.1
+Flask
+Flask-Bcrypt
+Flask-Cors
+Flask-JWT-Extended
+Flask-Login
+Flask-Migrate
+Flask-RESTful
+Flask-SQLAlchemy
+Flask-WTF
