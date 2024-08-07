@@ -29,6 +29,10 @@ def add_user(username, email, password):
 
 #Comments    
 
+def get_comment_by_comment_id(comment_id):
+    comment = Comment.query.filter_by(uid=comment_id).first()
+    return comment
+
 def get_comments_by_post_id(post_uid):
     try:
         comments = Comment.query.filter_by(post_uid=post_uid).all()
@@ -46,64 +50,26 @@ def create_new_comment(post_uid, user_uid, content):
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}")
 
-def update_existing_comment(comment_id, data, user_uid):
+def update_existing_comment(comment, data):
     try:
-        comment = Comment.query.filter_by(uid=comment_id).first()
-        if not comment:
-            return {
-                'message': 'Comment not found.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40014'}
-            }, 400
-
-        if str(comment.user_uid) != user_uid:
-            return {
-                'message': 'You are not authorized to update this comment.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40017'}
-            }, 400
-
-        comment.content = data.get('content', comment.content)
-        db.session.commit()
-        return {
-            'message': 'Comment updated successfully.',
-            'status': True,
-            'type': 'success_message',
-            'error_status': {'error_code': '00000'}
-        }, 200
+        if data:
+            comment.content = data.get('content', comment.content)
+            db.session.commit()
+            return True
+        else:
+            return False
     except Exception as e:
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}") 
 
-def delete_existing_comment(comment_id, user_uid):
+def delete_existing_comment(comment):
     try:
-        comment = Comment.query.filter_by(uid=comment_id).first()
-        if not comment:
-            return {
-                'message': 'Comment not found.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40014'}
-            }, 400
-
-        if str(comment.user_uid) != user_uid:
-            return {
-                'message': 'You are not authorized to delete this comment.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40017'}
-            }, 400
-
-        db.session.delete(comment)
-        db.session.commit()
-        return {
-            'message': 'Comment deleted successfully.',
-            'status': True,
-            'type': 'success_message',
-            'error_status': {'error_code': '00000'}
-        }, 200
+      if comment:
+          db.session.delete(comment)
+          db.session.commit()
+          return True
+      else:
+          return False
     except Exception as e:
         db.session.rollback()
         raise Exception(f"Database error: {str(e)}") 

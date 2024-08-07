@@ -1,5 +1,5 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from .schema import get_user_by_username, get_user_by_email, add_user, create_new_comment, get_comments_by_post_id, update_existing_comment, delete_existing_comment
+from .schema import get_user_by_username, get_user_by_email, add_user, create_new_comment, get_comments_by_post_id, update_existing_comment, delete_existing_comment, get_comment_by_comment_id
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt, jwt_required
 import datetime
 import re
@@ -191,7 +191,8 @@ def create_comment(data, post_uid, user_uid):
             }, 400
         
         new_comment = create_new_comment(post_uid, user_uid, content)
-        return {
+        if new_comment:
+            return {
             'message': 'Comment created successfully',
             'status': True,
             'type': 'success_message',
@@ -203,7 +204,15 @@ def create_comment(data, post_uid, user_uid):
                 'content': new_comment.content,
                 'created_at': str(new_comment.created_at)
             }
-        }, 201
+        }, 200
+        else:
+            return{
+            'message': 'Comments not Added',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '40013'}
+            },400
+        
     except Exception as e:
         return {
             'message': f'Failed to create comment: {str(e)}',
@@ -245,8 +254,40 @@ def update_comment(data, comment_id, user_id):
                 'error_status': {'error_code': '40012'}
             }, 400
         
-        response_data, status_code = update_existing_comment(comment_id, data, user_id)
-        return response_data, status_code
+        comment=get_comment_by_comment_id(comment_id)
+
+        if not comment:
+            return {
+                'message': 'Comment not found.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40014'}
+            }, 400
+        
+        if str(comment.user_uid) != user_id:
+            return {
+                'message': 'You are not authorized to update this comment.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40017'}
+            }, 400
+        sucess= update_existing_comment(comment,data)
+
+        if sucess:
+            return {
+            'message': 'Comment updated successfully.',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'}
+        }, 200
+        else:
+            return{
+            'message': 'Comment not Updated',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40013'}
+            },400
+        
     except Exception as e:
         return {
             'message': f'Failed to update comment: {str(e)}',
@@ -257,8 +298,38 @@ def update_comment(data, comment_id, user_id):
 
 def delete_comment(comment_id, user_id):
     try:
-        response_data, status_code = delete_existing_comment(comment_id, user_id)
-        return response_data, status_code
+        comment=get_comment_by_comment_id(comment_id)
+        if not comment:
+            return {
+                'message': 'Comment not found.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40014'}
+            }, 400
+        
+        if str(comment.user_uid) != user_id:
+            return {
+                'message': 'You are not authorized to delete this comment.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40017'}
+            }, 400
+        success = delete_existing_comment(comment)
+        if success:
+             return {
+            'message': 'Comment deleted successfully.',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'}
+        }, 200
+        else:
+            return{
+            'message': 'Comment not Deleted',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40013'}
+            },400
+        
     except Exception as e:
         return {
             'message': f'Failed to delete comment: {str(e)}',
