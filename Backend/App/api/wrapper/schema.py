@@ -12,7 +12,7 @@ def get_user_by_username(username):
         return user
     except Exception as e:
         error_logger('get_user_by_username', 'Failed to retrieve user', error=str(e), username=username)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def get_user_by_email(email):
     try:
@@ -20,7 +20,7 @@ def get_user_by_email(email):
         return user
     except Exception as e:
         error_logger('get_user_by_email', 'Failed to retrieve user', error=str(e), email=email)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def add_user(username, email, password):
     try:
@@ -32,7 +32,7 @@ def add_user(username, email, password):
     except Exception as e:
         db.session.rollback()
         error_logger('add_user', 'Failed to add user', error=str(e), username=username, email=email)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 # Post Functions
 
@@ -46,7 +46,7 @@ def create_post(title, content, user_uid, image=None):
     except Exception as e:
         db.session.rollback()
         error_logger('create_post', 'Failed to create post', error=str(e), title=title, content=content)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def update_post(post_id, title, content, image=None):
     try:
@@ -67,7 +67,7 @@ def update_post(post_id, title, content, image=None):
     except Exception as e:
         db.session.rollback()
         error_logger('update_post', 'Failed to update post', error=str(e), post_id=post_id)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def get_post_by_id(post_id):
     try:
@@ -79,7 +79,7 @@ def get_post_by_id(post_id):
             return None
     except Exception as e:
         error_logger('get_post_by_id', 'Failed to retrieve post', error=str(e), post_id=post_id)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def save_image(image_file, filename):
     try:
@@ -88,7 +88,7 @@ def save_image(image_file, filename):
         return filename
     except Exception as e:
         error_logger('save_image', 'Failed to save image', error=str(e), filename=filename)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def post_to_dict(post):
     return {
@@ -132,7 +132,7 @@ def delete_post(post_id, user_uid):
     except Exception as e:
         db.session.rollback()
         error_logger('delete_post', 'Failed to delete post', error=str(e), post_id=post_id)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 # Comment Functions
 
@@ -142,7 +142,7 @@ def get_comments_by_post_id(post_uid):
         return comments
     except Exception as e:
         error_logger('get_comments_by_post_id', 'Failed to retrieve comments', error=str(e), post_uid=post_uid)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def create_new_comment(post_uid, user_uid, content):
     try:
@@ -153,7 +153,7 @@ def create_new_comment(post_uid, user_uid, content):
     except Exception as e:
         db.session.rollback()
         error_logger('create_new_comment', 'Failed to create comment', error=str(e), post_uid=post_uid, user_uid=user_uid, content=content)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def update_existing_comment(comment_id, user_uid, updated_data):
     try:
@@ -185,7 +185,7 @@ def update_existing_comment(comment_id, user_uid, updated_data):
     except Exception as e:
         db.session.rollback()
         error_logger('update_existing_comment', 'Failed to update comment', error=str(e), comment_id=comment_id)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
 
 def delete_existing_comment(comment_id, user_uid):
     try:
@@ -217,7 +217,7 @@ def delete_existing_comment(comment_id, user_uid):
     except Exception as e:
         db.session.rollback()
         error_logger('delete_existing_comment', 'Failed to delete comment', error=str(e), comment_id=comment_id)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error: ")
 
 
 def get_paginated_posts(page, per_page, user_uid=None):
@@ -241,4 +241,4 @@ def get_paginated_posts(page, per_page, user_uid=None):
     
     except Exception as e:
         error_logger('get_paginated_posts', 'Failed to retrieve posts', error=str(e), page=page, per_page=per_page, user_uid=user_uid)
-        raise Exception(f"Database error: {str(e)}")
+        raise Exception("Database error")
