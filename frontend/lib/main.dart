@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/comments_page/view_model/comments_view_model.dart';
+import 'package:frontend/screens/create_post_page/view_model/create_view_model.dart';
+import 'package:frontend/screens/create_post_page/views/create_post_view.dart';
+import 'package:frontend/screens/edit_post_page/view_model/edit_post_view_model.dart';
 import 'package:frontend/screens/home_page/view_model/home_view_model.dart';
 import 'package:frontend/screens/home_page/views/home_page.dart';
 
@@ -25,6 +28,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SignupController()),
         ChangeNotifierProvider(create: (_) => PostViewModel()),
         ChangeNotifierProvider(create: (context) => CommentsViewModel()),
+        ChangeNotifierProvider(create: (_) => CreatePostController()),
+        ChangeNotifierProvider(create: (_) => EditPostViewModel()),
       ],
       child: MaterialApp.router(
         title: 'Flutter Demo',
@@ -51,6 +56,10 @@ class MyApp extends StatelessWidget {
       GoRoute(
         path: "/signup",
         builder: (context, state) => const SignupPage(),
+      ),
+      GoRoute(
+        path: "/createPost",
+        builder: (context, state) => const CreatePostView(),
       ),
     ],
   );

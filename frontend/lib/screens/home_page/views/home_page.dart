@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/create_post_page/views/create_post_view.dart';
+import 'package:frontend/screens/edit_post_page/views/edit_view.dart';
 import 'package:frontend/screens/home_page/views/profile_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/screens/home_page/views/home_view.dart';
@@ -71,19 +73,38 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Colors.white,
         ),
       ),
-      body: _pages[_currentIndex],
+      body: _currentIndex == 0 ? _pages[0] : _pages[1],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          if (index == 1) {
+            // Navigate to CreatePostView when the "Create" tab is tapped
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => CreatePostView()),
+            );
+          } else if (index == 2) {
+            // Navigate to EditView when the "Edit" tab is tapped
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => EditView()),
+            );
+          } else {
+            setState(() {
+              _currentIndex = index;
+            });
+          }
         },
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.create_new_folder_outlined),
+            label: 'Create',
+          ),
+
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',

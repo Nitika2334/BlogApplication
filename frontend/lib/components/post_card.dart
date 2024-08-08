@@ -7,6 +7,7 @@ class PostCard extends StatelessWidget {
   final String datePosted;
   final String content;
   final String imageUrl;
+  final VoidCallback onMoreTapped;
   final VoidCallback onCommentIconTapped; // Add a callback for the comment icon tap
 
   const PostCard({
@@ -16,6 +17,7 @@ class PostCard extends StatelessWidget {
     required this.datePosted,
     required this.content,
     required this.imageUrl,
+    required this.onMoreTapped,
     required this.onCommentIconTapped, // Add the callback to the constructor
   });
 
@@ -60,7 +62,10 @@ class PostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.more_horiz),
+                InkWell(
+                  onTap: onMoreTapped,
+                  child: Icon(Icons.more_horiz),
+                ),
               ],
             ),
           ),
@@ -86,7 +91,7 @@ class PostCard extends StatelessWidget {
                       Text('199', style: TextStyle(fontSize: 15),),
                       SizedBox(width: 12.0),
                       InkWell(
-                        onTap: onCommentIconTapped, // Use the callback
+                        onTap: onCommentIconTapped,
                         child: Image.asset(
                           'assets/images/comment_icon.png',
                           width: 24, // Adjust size if needed

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/delete_drawer/views/delete_view.dart';
+import 'package:frontend/screens/functionality_drawer/views/functionality_view.dart';
 import 'package:provider/provider.dart';
 import '../../../components/post_card.dart';
 import '../../comments_page/views/comments_view.dart';
@@ -44,6 +46,19 @@ class HomeView extends StatelessWidget {
                           showModalBottomSheet(
                             context: context,
                             builder: (context) => CommentsBottomSheet(),
+                          );
+                        },
+                        onMoreTapped: () {
+                          showModalBottomSheet(
+                            context: context,
+                            builder: (context) => FunctionalityView(
+                              onDeletePost: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  builder: (context) => DeleteView(),
+                                );
+                              },
+                            ),
                           );
                         },
                       );
