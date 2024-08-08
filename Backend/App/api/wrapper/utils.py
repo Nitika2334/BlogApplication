@@ -9,9 +9,9 @@ from flask import request, current_app, jsonify
 from .schema import (
     get_user_by_username, get_user_by_email, add_user, create_new_comment, 
     get_comments_by_post_id, update_existing_comment, delete_existing_comment,
-    create_post as schema_create_post, get_post_by_id as schema_get_post_by_id, 
-    update_post as schema_update_post, delete_post as schema_delete_post, 
-    get_paginated_posts as schema_get_paginated_posts
+    create_post as create_post_db, get_post_by_id as get_post_by_id_db, 
+    update_post as update_post_db, delete_post as delete_post_db, 
+    get_paginated_posts as get_paginated_posts_db
 )
 
 from App.api.logger import error_logger
@@ -305,7 +305,7 @@ def create_new_post(data):
         if image_file:
             image_url = save_image(image_file)
 
-        new_post = schema_create_post(title, content, get_jwt_identity(), image_url)
+        new_post = create_post_db(title, content, get_jwt_identity(), image_url)
         return {
             'message': 'Post created successfully',
             'status': True,
@@ -349,14 +349,14 @@ def allowed_file(filename):
 
 def get_post(post_id):
     try:
-        post = schema_get_post_by_id(post_id)
+        post = get_post_by_id_db(post_id)
         if not post:
             return {
                 'message': 'Post not found',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40008'}
-            }, 400
+            }, 404
         if post:
             return {
                 'message': 'Post retrieved successfully',
@@ -389,14 +389,14 @@ def update_post(post_id, data):
                 'error_status': {'error_code': '40007'}
             }, 400
 
-        post = schema_get_post_by_id(post_id)
+        post = get_post_by_id_db(post_id)
         if not post:
             return {
                 'message': 'Post not found',
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40008'}
-            }, 400
+            }, 404
 
         if str(post.user_uid) != user_id:
             return {
@@ -410,9 +410,9 @@ def update_post(post_id, data):
         if image_file:
             old_image_url = post.image
             image_url = save_image(image_file, old_image_url)
-            success = schema_update_post(post_id, title, content, image_url)
+            success = update_post_db(post_id, title, content, image_url)
         else:
-            success = schema_update_post(post_id, title, content)
+            success = update_post_db(post_id, title, content)
 
         if success:
             return {
@@ -441,7 +441,7 @@ def update_post(post_id, data):
 
 def delete_post(post_id, user_id):
     try:
-        post = schema_get_post_by_id(post_id)
+        post = get_post_by_id_db(post_id)
         if not post:
             return {
                 'message': 'Post not found',
@@ -459,7 +459,7 @@ def delete_post(post_id, user_id):
             }, 400
 
         old_image_url = post.image
-        success = schema_delete_post(post_id, user_id)
+        success = delete_post_db(post_id, user_id)
 
         if success:
             # Delete the image file
@@ -489,28 +489,6 @@ def delete_post(post_id, user_id):
             'error_status': {'error_code': '40011'}
         }, 400
 
-def get_posts(page, per_page, user_uid=None):
-    try:
-        posts, total_posts = schema_get_paginated_posts(page, per_page, user_uid)
-        posts_list = [post_to_dict(post) for post in posts]
-        return {
-            'message': 'Posts retrieved successfully',
-            'status': True,
-            'type': 'success_message',
-            'error_status': {'error_code': '00000'},
-            'data': {
-                'posts': posts_list
-            }
-        }, 200
-    except Exception as e:
-        error_logger('get_posts', 'Error retrieving posts', error=str(e))
-        return {
-            'message': 'Error retrieving posts',
-            'status': False,
-            'type': 'custom_error',
-            'error_status': {'error_code': '40024'}
-        }, 400
-
 def get_home_page_data(page, size, user_id=None):
     try:
         # Validate the page and size parameters
@@ -518,7 +496,7 @@ def get_home_page_data(page, size, user_id=None):
         size = int(size)
 
         # Retrieve paginated posts
-        posts, total_posts = schema_get_paginated_posts(page, size, user_uid=user_id)
+        posts, total_posts = get_paginated_posts_db(page, size, user_uid=user_id)
 
         data = {
             "current_page": page,
