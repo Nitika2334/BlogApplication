@@ -3,13 +3,12 @@ from App.Models.User.UserModel import User
 from App.Models.Post.PostModel import Post
 from App.Models.Comment.CommentModel import Comment
 from App import db
-from App.api.logger import info_logger, error_logger  # Import logging functions
+from App.api.logger import error_logger  # Import logging functions
 
 
 def get_user_by_username(username):
     try:
         user = User.query.filter_by(username=username).first()
-        info_logger('get_user_by_username', 'User retrieved successfully', username=username)
         return user
     except Exception as e:
         error_logger('get_user_by_username', 'Failed to retrieve user', error=str(e), username=username)
@@ -18,7 +17,6 @@ def get_user_by_username(username):
 def get_user_by_email(email):
     try:
         user = User.query.filter_by(email=email).first()
-        info_logger('get_user_by_email', 'User retrieved successfully', email=email)
         return user
     except Exception as e:
         error_logger('get_user_by_email', 'Failed to retrieve user', error=str(e), email=email)
@@ -29,7 +27,7 @@ def add_user(username, email, password):
         new_user = User(username=username, email=email, password=password)
         db.session.add(new_user)
         db.session.commit()
-        info_logger('add_user', 'User added successfully', username=username, email=email)
+        
         return new_user
     except Exception as e:
         db.session.rollback()
@@ -43,7 +41,7 @@ def create_post(title, content, user_uid, image=None):
         new_post = Post(title=title, content=content, user_uid=user_uid, image=image)
         db.session.add(new_post)
         db.session.commit()
-        info_logger('create_post', 'Post created successfully', post_id=str(new_post.uid), user_uid=user_uid)
+        
         return new_post
     except Exception as e:
         db.session.rollback()
@@ -65,7 +63,6 @@ def update_post(post_id, title, content, image=None):
             post.image = image
 
         db.session.commit()
-        info_logger('update_post', 'Post updated successfully', post_id=post_id)
         return True
     except Exception as e:
         db.session.rollback()
@@ -76,7 +73,6 @@ def get_post_by_id(post_id):
     try:
         post = Post.query.filter_by(uid=post_id).first()
         if post:
-            info_logger('get_post_by_id', 'Post retrieved successfully', post_id=post_id)
             return post
         else:
             error_logger('get_post_by_id', 'Post not found', post_id=post_id)
@@ -89,7 +85,6 @@ def save_image(image_file, filename):
     try:
         image_path = f"App/api/uploads/{filename}"
         image_file.save(image_path)
-        info_logger('save_image', 'Image saved successfully', filename=filename)
         return filename
     except Exception as e:
         error_logger('save_image', 'Failed to save image', error=str(e), filename=filename)
@@ -106,31 +101,6 @@ def post_to_dict(post):
         'image': post.image
     }
 
-# def get_post(post_id):
-#     try:
-#         post = get_post_by_id(post_id)
-#         if post:
-#             return {
-#                 'message': 'Post retrieved successfully',
-#                 'status': True,
-#                 'type': 'success_message',
-#                 'error_status': {'error_code': '00000'},
-#                 'data': post_to_dict(post)
-#             }, 200
-#         else:
-#             return {
-#                 'message': 'Post not found',
-#                 'status': False,
-#                 'type': 'custom_error',
-#                 'error_status': {'error_code': '40019'}
-#             }, 404
-#     except Exception as e:
-#         return {
-#             'message': f'Error retrieving post: {str(e)}',
-#             'status': False,
-#             'type': 'custom_error',
-#             'error_status': {'error_code': '40021'}
-#         }, 400
 
 def delete_post(post_id, user_uid):
     try:
@@ -153,7 +123,6 @@ def delete_post(post_id, user_uid):
 
         db.session.delete(post)
         db.session.commit()
-        info_logger('delete_post', 'Post deleted successfully', post_id=post_id)
         return {
             'message': 'Post deleted successfully',
             'status': True,
@@ -170,7 +139,6 @@ def delete_post(post_id, user_uid):
 def get_comments_by_post_id(post_uid):
     try:
         comments = Comment.query.filter_by(post_uid=post_uid).all()
-        info_logger('get_comments_by_post_id', 'Comments retrieved successfully', post_uid=post_uid)
         return comments
     except Exception as e:
         error_logger('get_comments_by_post_id', 'Failed to retrieve comments', error=str(e), post_uid=post_uid)
@@ -181,7 +149,6 @@ def create_new_comment(post_uid, user_uid, content):
         new_comment = Comment(content=content, user_uid=user_uid, post_uid=post_uid)
         db.session.add(new_comment)
         db.session.commit()
-        info_logger('create_new_comment', 'Comment created successfully', post_uid=post_uid, user_uid=user_uid)
         return new_comment
     except Exception as e:
         db.session.rollback()
@@ -209,7 +176,6 @@ def update_existing_comment(comment_id, user_uid, updated_data):
 
         comment.content = updated_data.get('content', comment.content)
         db.session.commit()
-        info_logger('update_existing_comment', 'Comment updated successfully', comment_id=comment_id)
         return {
             'message': 'Comment updated successfully.',
             'status': True,
@@ -242,7 +208,6 @@ def delete_existing_comment(comment_id, user_uid):
 
         db.session.delete(comment)
         db.session.commit()
-        info_logger('delete_existing_comment', 'Comment deleted successfully', comment_id=comment_id)
         return {
             'message': 'Comment deleted successfully.',
             'status': True,
@@ -259,8 +224,6 @@ def get_paginated_posts(page, per_page, user_uid=None):
     try:
         page = int(page)
         per_page = int(per_page)
-        if page < 1 or per_page < 1:
-            raise ValueError("Page and per_page must be positive integers.")
 
         offset = (page - 1) * per_page
 
@@ -273,12 +236,9 @@ def get_paginated_posts(page, per_page, user_uid=None):
 
         posts = query.offset(offset).limit(per_page).all()
 
-        info_logger('get_paginated_posts', 'Posts retrieved successfully', page=page, per_page=per_page, user_uid=user_uid)
         
         return posts, total_posts
-    except ValueError as ve:
-        error_logger('get_paginated_posts', 'Invalid pagination parameters', error=str(ve), page=page, per_page=per_page, user_uid=user_uid)
-        raise ValueError(f"Invalid pagination parameters: {str(ve)}")
+    
     except Exception as e:
         error_logger('get_paginated_posts', 'Failed to retrieve posts', error=str(e), page=page, per_page=per_page, user_uid=user_uid)
         raise Exception(f"Database error: {str(e)}")
