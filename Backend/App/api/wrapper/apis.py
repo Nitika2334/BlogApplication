@@ -101,6 +101,13 @@ class CommentResource(Resource):
 
             user_id = get_jwt_identity()
             data = request.get_json()
+            if not data or 'content' not in data:
+                return {
+                'message': 'Content is required',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40012'}
+            }, 400
             response_data, status_code = create_comment(data, post_id, user_id)
             return response_data, status_code
         except Exception as e:
@@ -125,6 +132,13 @@ class CommentResource(Resource):
             
             data = request.get_json()
             user_id = get_jwt_identity()
+            if not data or 'content' not in data:
+                return {
+                'message': 'Content is required',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40012'}
+            }, 400
             response_data, status_code = update_comment(data, comment_id, user_id)
             return response_data, status_code
         except Exception as e:

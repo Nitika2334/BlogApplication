@@ -136,6 +136,14 @@ def delete_post(post_id, user_uid):
 
 # Comment Functions
 
+def get_comment_by_comment_id(comment_id):
+    try:
+        comment = Comment.query.filter_by(uid=comment_id).first()
+        return comment
+    except Exception as e:
+        error_logger('get_comment_by_comment_id', 'Comment not found', error=str(e), comment_id=comment_id)
+        raise Exception("Database error")
+    
 def get_comments_by_post_id(post_uid):
     try:
         comments = Comment.query.filter_by(post_uid=post_uid).all()
@@ -144,79 +152,44 @@ def get_comments_by_post_id(post_uid):
         error_logger('get_comments_by_post_id', 'Failed to retrieve comments', error=str(e), post_uid=post_uid)
         raise Exception("Database error")
 
-def create_new_comment(post_uid, user_uid, content):
+def create_new_comment(post_uid, user_uid, data):
     try:
-        new_comment = Comment(content=content, user_uid=user_uid, post_uid=post_uid)
+        if 'uid' in data:
+            new_comment = Comment(uid=data['uid'], content=data['content'], user_uid=user_uid, post_uid=post_uid)
+        else:
+            new_comment = Comment(content=data['content'], user_uid=user_uid, post_uid=post_uid)
         db.session.add(new_comment)
         db.session.commit()
         return new_comment
     except Exception as e:
         db.session.rollback()
-        error_logger('create_new_comment', 'Failed to create comment', error=str(e), post_uid=post_uid, user_uid=user_uid, content=content)
+        error_logger('create_new_comment', 'Failed to create comment', error=str(e), post_uid=post_uid, user_uid=user_uid, content=data['content'])
         raise Exception("Database error")
 
-def update_existing_comment(comment_id, user_uid, updated_data):
+def update_existing_comment(comment,data):
     try:
-        comment = Comment.query.filter_by(uid=comment_id).first()
-        if not comment:
-            return {
-                'message': 'Comment not found.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40014'}
-            }, 400
-
-        if str(comment.user_uid) != user_uid:
-            return {
-                'message': 'You are not authorized to update this comment.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40017'}
-            }, 400
-
-        comment.content = updated_data.get('content', comment.content)
-        db.session.commit()
-        return {
-            'message': 'Comment updated successfully.',
-            'status': True,
-            'type': 'success_message',
-            'error_status': {'error_code': '00000'}
-        }, 200
+        if data:
+            comment.content = data.get('content', comment.content)
+            db.session.commit()
+            return True
+        else:
+            return False
     except Exception as e:
         db.session.rollback()
-        error_logger('update_existing_comment', 'Failed to update comment', error=str(e), comment_id=comment_id)
+        error_logger('update_existing_comment', 'Failed to update comment', error=str(e))
         raise Exception("Database error")
 
-def delete_existing_comment(comment_id, user_uid):
+def delete_existing_comment(comment):
     try:
-        comment = Comment.query.filter_by(uid=comment_id).first()
-        if not comment:
-            return {
-                'message': 'Comment not found.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40014'}
-            }, 400
-
-        if str(comment.user_uid) != user_uid:
-            return {
-                'message': 'You are not authorized to delete this comment.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40017'}
-            }, 400
-
-        db.session.delete(comment)
-        db.session.commit()
-        return {
-            'message': 'Comment deleted successfully.',
-            'status': True,
-            'type': 'success_message',
-            'error_status': {'error_code': '00000'}
-        }, 200
+      if comment:
+          db.session.delete(comment)
+          db.session.commit()
+          return True
+      else:
+          return False
     except Exception as e:
         db.session.rollback()
-        error_logger('delete_existing_comment', 'Failed to delete comment', error=str(e), comment_id=comment_id)
+        error_logger('delete_existing_comment', 'Failed to delete comment', error=str(e))
         raise Exception("Database error: ")
 
 

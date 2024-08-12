@@ -8,7 +8,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt
 from flask import request, current_app, jsonify
 from .schema import (
     get_user_by_username, get_user_by_email, add_user, create_new_comment, 
-    get_comments_by_post_id, update_existing_comment, delete_existing_comment,
+    get_comments_by_post_id, update_existing_comment, delete_existing_comment, get_comment_by_comment_id,
     create_post as create_post_db, get_post_by_id as get_post_by_id_db, 
     update_post as update_post_db, delete_post as delete_post_db, 
     get_paginated_posts as get_paginated_posts_db
@@ -111,7 +111,7 @@ def user_login(data):
 
         if user and check_password_hash(user.password, password):
             user_id = str(user.uid)
-            expires = datetime.timedelta(minutes=120)
+            expires = datetime.timedelta(minutes=30)
             access_token = create_access_token(identity=user.uid, expires_delta=expires)
             return {
                 'message': 'User logged in successfully',
@@ -184,17 +184,9 @@ def comment_to_dict(comment):
 
 def create_comment(data, post_uid, user_uid):
     try:
-        content = data.get('content')
-        if not content:
+        new_comment = create_new_comment(post_uid, user_uid, data)
+        if new_comment:
             return {
-                'message': 'Content is required',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40012'}
-            }, 400
-        
-        new_comment = create_new_comment(post_uid, user_uid, content)
-        return {
             'message': 'Comment created successfully',
             'status': True,
             'type': 'success_message',
@@ -228,7 +220,7 @@ def get_comments(post_uid):
             'data': {
                 'comments': comments_list
             }
-        }, 200
+        }, 200      
     except Exception as e:
         error_logger('get_comments', 'Failed to get comments', error=str(e))
         return {
@@ -240,19 +232,40 @@ def get_comments(post_uid):
     
 def update_comment(data, comment_id, user_id):
     try:
-        content = data.get('content')
-        if not content:
+        comment=get_comment_by_comment_id(comment_id)
+        if not comment:
             return {
-                'message': 'Content is required',
+                'message': 'Comment not found.',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40012'}
+                'error_status': {'error_code': '40014'}
             }, 400
         
-        response_data, status_code = update_existing_comment(comment_id, content, user_id)
-        return response_data, status_code
+        if str(comment.user_uid) != user_id:
+            return {
+                'message': 'You are not authorized to update this comment.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40017'}
+            }, 400
+        sucess= update_existing_comment(comment,data)
+
+        if sucess:
+            return {
+            'message': 'Comment updated successfully.',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'}
+        }, 200
+        else:
+            return{
+            'message': 'Comment not Updated',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40013'}
+            }, 400
     except Exception as e:
-        error_logger('update_comment', 'Failed to update comment', error=str(e))
+        error_logger('update_comment', 'Failed to update comment', error=str(e), comment_id=comment_id)
         return {
             'message': 'Failed to update comment',
             'status': False,
@@ -262,10 +275,39 @@ def update_comment(data, comment_id, user_id):
 
 def delete_comment(comment_id, user_id):
     try:
-        response_data, status_code = delete_existing_comment(comment_id, user_id)
-        return response_data, status_code
+        comment=get_comment_by_comment_id(comment_id)
+        if not comment:
+            return {
+                'message': 'Comment not found.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40014'}
+            }, 400
+        
+        if str(comment.user_uid) != user_id:
+            return {
+                'message': 'You are not authorized to delete this comment.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40017'}
+            }, 400
+        success = delete_existing_comment(comment)
+        if success:
+             return {
+            'message': 'Comment deleted successfully.',
+            'status': True,
+            'type': 'success_message',
+            'error_status': {'error_code': '00000'}
+        }, 200
+        else:
+            return{
+            'message': 'Comment not Deleted',
+            'status': False,
+            'type': 'custom_error',
+            'error_status': {'error_code': '40013'}
+            },400
     except Exception as e:
-        error_logger('delete_comment', 'Failed to delete comment', error=str(e))
+        error_logger('delete_comment', 'Failed to delete comment', error=str(e), comment_id=comment_id)
         return {
             'message': 'Failed to delete comment',
             'status': False,
