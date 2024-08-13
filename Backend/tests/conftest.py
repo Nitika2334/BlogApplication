@@ -1,6 +1,7 @@
 import pytest
 from App import create_app, db
 
+
 @pytest.fixture(scope='function')
 def test_client():
     flask_app = create_app('testing')
@@ -31,3 +32,12 @@ def mock_get_comments_by_post_id(mocker):
 @pytest.fixture
 def mock_create_new_comment(mocker):
     return mocker.patch('App.api.wrapper.schema.create_new_comment')
+
+@pytest.fixture
+def mock_user_register(mocker):
+    return mocker.patch('App.api.wrapper.utils.user_register', autospec=True)
+
+@pytest.fixture
+def mock_create_post_db(mocker):
+    return mocker.patch('App.api.wrapper.utils.create_new_post', autospec=True)
+
