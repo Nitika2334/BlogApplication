@@ -327,6 +327,7 @@ def post_to_dict(post):
         'title': post.title,
         'content': post.content,
         'user_uid': str(post.user_uid),
+        'username':post.username,
         'created_at': post.created_at.isoformat(),
         'updated_at': post.updated_at.isoformat(),
         'image': post.image  
@@ -349,8 +350,8 @@ def create_new_post(data):
         image_url = None
         if image_file:
             image_url = save_image(image_file)
-
-        new_post = create_post_db(title, content, get_jwt_identity(), image_url)
+        user=get_user_by_user_id(get_jwt_identity())
+        new_post = create_post_db(title, content, get_jwt_identity(), user.username,image_url)
         return {
             'message': 'Post created successfully',
             'status': True,
@@ -359,6 +360,7 @@ def create_new_post(data):
             'data': {
                 'post_id': str(new_post.uid),
                 'title': new_post.title,
+                'username':user.username,
                 'content': new_post.content,
                 'image_url': new_post.image
             }

@@ -44,9 +44,9 @@ def add_user(username, email, password):
 
 # Post Functions
 
-def create_post(title, content, user_uid, image=None):
+def create_post(title, content, user_uid, username,image=None):
     try:
-        new_post = Post(title=title, content=content, user_uid=user_uid, image=image)
+        new_post = Post(title=title, content=content, user_uid=user_uid, image=image, username=username)
         db.session.add(new_post)
         db.session.commit()
         
@@ -104,11 +104,11 @@ def post_to_dict(post):
         'title': post.title,
         'content': post.content,
         'user_uid': str(post.user_uid),
+        'username':post.username,
         'created_at': post.created_at.isoformat(),
         'updated_at': post.updated_at.isoformat(),
         'image': post.image
     }
-
 
 def delete_post(post_id, user_uid):
     try:
