@@ -398,7 +398,7 @@ def get_post(post_id):
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40008'}
-            }, 404
+            }, 400
         if post:
             return {
                 'message': 'Post retrieved successfully',

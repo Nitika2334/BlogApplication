@@ -46,15 +46,23 @@ def test_register_success(mock_register_user, mock_validate_email, test_client):
 def test_register_missing_field(mock_register_user, mock_validate_email, test_client):
     # Prepare test data with a missing field
     data = {
-        'username': 'newuser',
-        'email': ''  # Missing email
+        'username': 'new'
     }
 
     # Mocks setup
-    mock_validate_email.return_value = False
+    mock_validate_email.return_value = {
+        "message": "Title and content are required",
+        "status": False,
+        "type": "custom_error",
+        "error_status": {
+            "error_code": "40012"
+        }
+    }
 
     # Perform a POST request to the register endpoint with missing email
     response = test_client.post('/api/v1/register', json=data)
+
+    print(response.status_code)
 
     # Ensure the mock was not called since the request is invalid
     mock_register_user.assert_not_called()

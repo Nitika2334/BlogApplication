@@ -44,7 +44,7 @@ def test_delete_no_token(mock_delete_post, test_client):
     post_id = '9a5a1ab5-e305-455b-9735-13e90e346256'
 
     # Perform a DELETE request to the delete comment endpoint without an Authorization header
-    response = test_client.delete(f'/api/v1/comments/{post_id}')
+    response = test_client.delete(f'/api/v1/post')
 
     # Ensure the mock was not called
     mock_delete_post.assert_not_called()
@@ -53,3 +53,37 @@ def test_delete_no_token(mock_delete_post, test_client):
     assert response.status_code == 401  # Unauthorized
     assert response.json['msg'] == 'Missing Authorization Header'
 
+# def test_delete_post_unauthorized(mock_delete_post, test_client):
+#     post_id = UUID('a243d45d-4281-4c8f-bfb2-276ebdc55276')
+#     user_id = '56d65ec9-db08-42d5-9a56-303affb4fd81'  # The user making the delete request
+
+#     access_token = create_access_token(identity=user_id)
+
+#     headers = {
+#         'Authorization': f'Bearer {access_token}'
+#     }
+
+#     # Simulate a post owned by a different user
+#     mock_delete_post.return_value = (
+#         {
+#             'message': 'You are not authorized to delete this post.',
+#             'status': False,
+#             'type': 'custom_error',
+#             'error_status': {'error_code': '40006'}
+#         },
+#         400
+#     )
+
+#     # Perform the DELETE request
+#     response = test_client.delete(f'/api/v1/post/{post_id}', headers=headers)
+
+#     # Debugging output
+#     print(f"Response status code: {response.status_code}")
+#     print(f"Response JSON: {response.json}")
+
+#     # Ensure the mock was called once with the correct parameters
+#     mock_delete_post.assert_called_once_with(post_id, user_id)
+
+#     # Check the response status code and content
+#     assert response.status_code == 400
+#     assert response.json['message'] == 'You are not authorized to delete this post.'
