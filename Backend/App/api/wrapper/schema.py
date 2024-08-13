@@ -22,6 +22,14 @@ def get_user_by_email(email):
         error_logger('get_user_by_email', 'Failed to retrieve user', error=str(e), email=email)
         raise Exception("Database error")
 
+def get_user_by_user_id(uid):
+    try:
+        user=User.query.filter_by(uid=uid).first()
+        return user
+    except Exception as e:
+        error_logger('get_user_by_uid', 'Failed to retrieve user', error=str(e), uid=uid)
+        raise Exception("Database error")
+
 def add_user(username, email, password):
     try:
         new_user = User(username=username, email=email, password=password)
@@ -152,12 +160,12 @@ def get_comments_by_post_id(post_uid):
         error_logger('get_comments_by_post_id', 'Failed to retrieve comments', error=str(e), post_uid=post_uid)
         raise Exception("Database error")
 
-def create_new_comment(post_uid, user_uid, data):
+def create_new_comment(post_uid, user_uid, data, username):
     try:
         if 'uid' in data:
-            new_comment = Comment(uid=data['uid'], content=data['content'], user_uid=user_uid, post_uid=post_uid)
+            new_comment = Comment(uid=data['uid'], content=data['content'], username=username, user_uid=user_uid, post_uid=post_uid)
         else:
-            new_comment = Comment(content=data['content'], user_uid=user_uid, post_uid=post_uid)
+            new_comment = Comment(content=data['content'], username=username, user_uid=user_uid, post_uid=post_uid)
         db.session.add(new_comment)
         db.session.commit()
         return new_comment

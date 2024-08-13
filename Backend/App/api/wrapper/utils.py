@@ -11,7 +11,7 @@ from .schema import (
     get_comments_by_post_id, update_existing_comment, delete_existing_comment, get_comment_by_comment_id,
     create_post as create_post_db, get_post_by_id as get_post_by_id_db, 
     update_post as update_post_db, delete_post as delete_post_db, 
-    get_paginated_posts as get_paginated_posts_db
+    get_paginated_posts as get_paginated_posts_db, get_user_by_user_id
 )
 
 from App.api.logger import error_logger
@@ -177,6 +177,7 @@ def comment_to_dict(comment):
         'content': comment.content,
         'user_uid': str(comment.user_uid),
         'post_uid': str(comment.post_uid),
+        'username':comment.username,
         'created_at': comment.created_at.isoformat(),
         'updated_at': comment.updated_at.isoformat(),
     }
@@ -184,7 +185,8 @@ def comment_to_dict(comment):
 
 def create_comment(data, post_uid, user_uid):
     try:
-        new_comment = create_new_comment(post_uid, user_uid, data)
+        user=get_user_by_user_id(user_uid)
+        new_comment = create_new_comment(post_uid, user_uid, data, user.username)
         if new_comment:
             return {
             'message': 'Comment created successfully',
@@ -194,6 +196,7 @@ def create_comment(data, post_uid, user_uid):
             'data': {
                 'comment_id': str(new_comment.uid),
                 'post_id': str(post_uid),
+                'username':user.username,
                 'user_id': str(user_uid),
                 'content': new_comment.content,
                 'created_at': str(new_comment.created_at)
