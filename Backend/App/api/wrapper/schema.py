@@ -98,18 +98,6 @@ def save_image(image_file, filename):
         error_logger('save_image', 'Failed to save image', error=str(e), filename=filename)
         raise Exception("Database error")
 
-def post_to_dict(post):
-    return {
-        'uid': str(post.uid),
-        'title': post.title,
-        'content': post.content,
-        'user_uid': str(post.user_uid),
-        'username':post.username,
-        'created_at': post.created_at.isoformat(),
-        'updated_at': post.updated_at.isoformat(),
-        'image': post.image
-    }
-
 def delete_post(post_id, user_uid):
     try:
         post = Post.query.filter_by(uid=post_id).first()
@@ -143,6 +131,16 @@ def delete_post(post_id, user_uid):
         raise Exception("Database error")
 
 # Comment Functions
+    
+def get_comment_count_for_post(post_id):
+    try:
+        # Assuming you have a Comment model with a post_id foreign key
+        comment_count = Comment.query.filter_by(post_uid=post_id).count()
+        return comment_count
+    except Exception as e:
+        error_logger('get_comment_count_for_post', 'Failed to count comments', error=str(e), post_uid=post_id)
+        raise Exception("Database error")
+
 
 def get_comment_by_comment_id(comment_id):
     try:

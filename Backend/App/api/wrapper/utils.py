@@ -11,7 +11,7 @@ from .schema import (
     get_comments_by_post_id, update_existing_comment, delete_existing_comment, get_comment_by_comment_id,
     create_post as create_post_db, get_post_by_id as get_post_by_id_db, 
     update_post as update_post_db, delete_post as delete_post_db, 
-    get_paginated_posts as get_paginated_posts_db, get_user_by_user_id
+    get_paginated_posts as get_paginated_posts_db, get_user_by_user_id,get_comment_count_for_post
 )
 
 from App.api.logger import error_logger
@@ -330,7 +330,8 @@ def post_to_dict(post):
         'username':post.username,
         'created_at': post.created_at.isoformat(),
         'updated_at': post.updated_at.isoformat(),
-        'image': post.image  
+        'image': post.image,
+        'no_of_comments' : get_comment_count_for_post(post.uid)
     }
 
 def create_new_post(data):
@@ -413,6 +414,7 @@ def get_post(post_id):
                 'data': post_to_dict(post)
             }, 200
     except Exception as e:
+        print(str(e))
         error_logger('get_post', 'Error retrieving post', error=str(e))
         return {
             'message': 'Error retrieving post',
