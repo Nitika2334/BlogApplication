@@ -404,7 +404,7 @@ def get_post(post_id):
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40008'}
-            }, 404
+            }, 400
         if post:
             return {
                 'message': 'Post retrieved successfully',
@@ -445,7 +445,7 @@ def update_post(post_id, data):
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40008'}
-            }, 404
+            }, 400
 
         if str(post.user_uid) != user_id:
             return {
@@ -497,7 +497,7 @@ def delete_post(post_id, user_id):
                 'status': False,
                 'type': 'custom_error',
                 'error_status': {'error_code': '40008'}
-            }, 404
+            }, 400
 
         if str(post.user_uid) != user_id:
             return {
