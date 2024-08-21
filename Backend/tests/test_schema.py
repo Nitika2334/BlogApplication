@@ -50,7 +50,10 @@ def test_get_user_by_username_success(mocker, test_client):
 
 
 def test_get_user_by_username_with_error(mocker):
-    mocker.patch('App.api.wrapper.schema.User.query.filter_by', side_effect=Exception("Database error"))
+    # Create a mock query object that raises an exception when filter_by is called
+    query_mock = MagicMock()
+    query_mock.filter_by.side_effect = Exception("Database error")
+    mocker.patch('App.Models.User.UserModel.User.query', query_mock)
 
     username = "test_user"
 
@@ -76,8 +79,10 @@ def test_get_user_by_email_success(mocker, test_client):
 
 
 def test_get_user_by_email_with_error(mocker):
-    query_mock = mocker.patch('App.Models.User.UserModel.User.query.filter_by')
-    query_mock.side_effect = Exception("Database error")
+    # Create a mock query object that raises an exception when filter_by is called
+    query_mock = MagicMock()
+    query_mock.filter_by.side_effect = Exception("Database error")
+    mocker.patch('App.Models.User.UserModel.User.query', query_mock)
 
     email = "test@example.com"
 
