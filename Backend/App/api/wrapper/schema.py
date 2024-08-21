@@ -199,7 +199,7 @@ def delete_existing_comment(comment):
     except Exception as e:
         db.session.rollback()
         error_logger('delete_existing_comment', 'Failed to delete comment', error=str(e))
-        raise Exception("Database error: ")
+        raise Exception("Database error")
 
 
 def get_paginated_posts_db(page, per_page, user_uid=None):
