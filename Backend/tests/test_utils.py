@@ -7,8 +7,16 @@ from App.api.wrapper.utils import create_comment
 from App.api.wrapper.utils import user_login
 from App.api.wrapper.utils import user_register
 from App.api.wrapper.utils import user_logout,REVOKED_TOKENS
+from App.api.wrapper.utils import (
+    create_new_post,
+    get_post,
+    update_post,
+    delete_post
+)
 
 # Mocks
+
+#Auth
 get_user_by_username_mock = "App.api.wrapper.utils.get_user_by_username"
 check_password_hash_mock = "App.api.wrapper.utils.check_password_hash"
 create_access_token_mock = "App.api.wrapper.utils.create_access_token"
@@ -17,9 +25,10 @@ validate_password_mock = "App.api.wrapper.utils.validate_password"
 get_user_by_email_mock = "App.api.wrapper.utils.get_user_by_email"
 add_user_mock = "App.api.wrapper.utils.add_user"
 generate_password_hash_mock = "App.api.wrapper.utils.generate_password_hash"
-
-get_comment_by_comment_id_mock = "App.api.wrapper.utils.get_comment_by_comment_id"
 get_user_by_user_id_mock = "App.api.wrapper.utils.get_user_by_user_id"
+
+#Comments
+get_comment_by_comment_id_mock = "App.api.wrapper.utils.get_comment_by_comment_id"
 create_new_comment_mock = "App.api.wrapper.utils.create_new_comment"
 get_comments_by_post_id_mock = "App.api.wrapper.utils.get_comments_by_post_id"
 comment_to_dict_mock = "App.api.wrapper.utils.comment_to_dict"
@@ -27,13 +36,15 @@ delete_existing_comment_mock = "App.api.wrapper.utils.delete_existing_comment"
 update_existing_comment_mock = "App.api.wrapper.utils.update_existing_comment"
 error_logger_mock = "App.api.logger.error_logger"
 
-@pytest.fixture
-def comment():
-    # Create a mock comment object
-    return MagicMock(
-        comment_uid='853d4bc5-88fe-4408-bf3f-194e78d76058',
-        user_uid='2ce3f6ff-0420-455f-853d-13bdd1df3124'
-    )
+#Post
+create_post_mock = "App.api.wrapper.utils.create_post_db"
+save_image_mock = "App.api.wrapper.utils.save_image"
+get_post_by_id_mock = "App.api.wrapper.utils.get_post_by_id"
+update_post_mock = "App.api.wrapper.utils.update_post"
+delete_post_mock = "App.api.wrapper.utils.delete_post"
+get_jwt_identity_mock="App.api.wrapper.utils.get_jwt_identity"
+get_comment_count_for_post_mock="App.api.wrapper.utils.get_comment_count_for_post"
+post_to_dict_mock="App.api.wrapper.utils.post_to_dict"
 
 @pytest.fixture
 def users():
@@ -46,9 +57,23 @@ def users():
     )
 
 @pytest.fixture
-def user():
+def user_mock():
     # Create a mock user object
     return MagicMock(username='test_user')
+
+@pytest.fixture
+def user():
+    return MagicMock(uid="user_uid_456", username="testuser")
+
+@pytest.fixture
+def post():
+    return MagicMock(
+        post_id="post_id_123",
+        title="Test Post",
+        content="This is a test post.",
+        image_url="http://example.com/image.jpg",
+    )
+
 
 @pytest.fixture
 def new_comment():
@@ -67,6 +92,13 @@ def gets_comments():
         MagicMock(comment_uid='2', content='Second comment')
     ]
 
+@pytest.fixture
+def comment():
+    # Create a mock comment object
+    return MagicMock(
+        comment_uid='853d4bc5-88fe-4408-bf3f-194e78d76058',
+        user_uid='2ce3f6ff-0420-455f-853d-13bdd1df3124'
+    )
 
 # User register 
 
@@ -283,6 +315,7 @@ def test_user_login_exception(mocker):
     assert response['type'] == 'custom_error'
     assert response['error_status']['error_code'] == '40000'
 
+
 # User Logout
 
 def test_user_logout_success(mocker):
@@ -332,7 +365,7 @@ def test_create_comment_success(mocker, user, new_comment):
     assert response['error_status']['error_code'] == '00000'
     assert response['data']['comment_id'] == '853d4bc5-88fe-4408-bf3f-194e78d76058'
     assert response['data']['post_id'] == 'post_uid_123'
-    assert response['data']['username'] == 'test_user'
+    assert response['data']['username'] == 'testuser'
     assert response['data']['user_id'] == 'user_uid_456'
     assert response['data']['content'] == 'This is a comment'
     assert response['data']['created_at'] == '2024-08-20T00:00:00Z'
@@ -622,3 +655,200 @@ def test_delete_comment_exception(mocker, comment):
     assert response['status'] is False
     assert response['type'] == 'custom_error'
     assert response['error_status']['error_code'] == '40018'
+
+
+#Post
+
+# Create Post Tests
+
+def test_create_post_success(mocker, post):
+    # Mock dependencies
+    mocker.patch(create_post_mock, return_value=post)
+    mocker.patch(save_image_mock, return_value="http://example.com/image.jpg")
+    mocker.patch(get_jwt_identity_mock, return_value="user_id_123")
+    mocker.patch(get_user_by_user_id_mock, return_value=MagicMock(username="test_user"))
+
+    # Mock request context
+    mock_request_files = MagicMock()
+    mock_request_files.get = MagicMock(return_value=None)
+    mocker.patch('flask.request.files', mock_request_files)
+
+    # Data to be used in the function
+    data = {"title": "Test Post", "content": "This is a test post.", "image": None}
+
+    # Call the function being tested
+    response, status_code = create_new_post(data)
+
+    # Print response for debugging
+    print(response)
+
+    # Assertions
+    assert status_code == 200
+    assert response["message"] == "Post created successfully."
+    assert response["status"] is True
+    assert response["data"]["post_id"] == "post_id_123"
+    assert response["data"]["title"] == "Test Post"
+    assert response["data"]["content"] == "This is a test post."
+    assert response["data"]["image_url"] == "http://example.com/image.jpg"
+
+
+def test_create_post_missing_fields(mocker,post):
+    mocker.patch(create_post_mock, post)
+    mocker.patch(save_image_mock, return_value="http://example.com/image.jpg")
+    #mocker.patch('flask.request.files.get', return_value=None)
+    mocker.patch(get_jwt_identity_mock, return_value="user_id_123")
+    mocker.patch(get_user_by_user_id_mock, return_value=MagicMock(username="test_user"))
+
+    data = {"title": "", "content": ""}
+    response, status_code = create_new_post(data)
+
+    print(response)
+
+    assert status_code == 400
+    assert response["message"] == "Please provide both title and content."
+    assert response["status"] is False
+    assert response["error_status"]["error_code"] == "40001"
+
+def test_create_post_exception(mocker):
+    
+    mocker.patch(create_post_mock, side_effect=Exception("Database error"))
+
+    data = {"title": "Test Post", "content": "This is a test post.", "image": None}
+    response, status_code = create_new_post(data)
+
+    assert status_code == 400
+    assert response["message"] == "Error creating post"
+    assert response["status"] is False
+    assert response["error_status"]["error_code"] == "40000"
+
+# Get Post Tests
+
+def test_get_post_success(mocker, post):
+    # Mock dependencies
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    
+    # Mock the funget_comment_count_for_postction to return a fixed number of comments
+    mocker.patch(get_comment_count_for_post_mock, return_value=5)  # Adjust the path as needed
+
+    # Mock post_to_dict to return the post in the expected format
+    mocker.patch(post_to_dict_mock, side_effect=lambda p: {
+        'uid': str(p.uid),
+        'title': p.title,
+        'content': p.content,
+        'user_uid': str(p.user_uid),
+        'username': p.username,
+        'created_at': p.created_at.isoformat(),
+        'updated_at': p.updated_at.isoformat(),
+        'image': p.image,
+        'no_of_comments': 5  # This should match the value returned by the mock
+    })
+
+    # Call the function being tested
+    response, status_code = get_post("d817221b-6f69-40f6-aaca-018b80dfebe0")
+
+    # Assertions to validate the response structure and content
+    assert status_code == 200
+    assert response["message"] == "Post retrieved successfully"
+    assert response["status"] is True
+    assert response["type"] == 'success_message'
+    assert response["error_status"]["error_code"] == '00000'
+    assert response["data"]["title"] == post.title
+    assert response["data"]["content"] == post.content
+
+
+def test_get_post_not_found(mocker):
+    mocker.patch(get_post_by_id_mock, return_value=None)
+    response, status_code = get_post("d817221b-6f69-40f6-aaca-018b80dfebe4")
+
+    assert status_code == 400
+    assert response["message"] == "Post not found"
+    assert response["status"] is False
+    assert response["error_status"]["error_code"] == "40008"
+
+
+# Update Post Tests
+
+def test_update_post_success(mocker, post):
+    # Mock dependencies
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(update_post_mock, return_value=True)
+    mocker.patch(save_image_mock, return_value="http://example.com/image.jpg")
+    mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
+
+    # Mock request context
+    #mocker.patch('flask.request.files', new_callable=lambda: {'image': None})  # Adjust if needed
+
+    data = {"title": "Updated Post", "content": "Updated content.", "image": None}
+    response, status_code = update_post("d817221b-6f69-40f6-aaca-018b80dfebe0", data)
+
+    # Print response for debugging
+    print(response)
+
+    # Assertions
+    assert status_code == 200
+    assert response["message"] == "Post updated successfully."
+    assert response["status"] is True
+    assert response["data"]["post_id"] == str(post.uid)
+    assert response["data"]["title"] == "Updated Post"
+    assert response["data"]["content"] == "Updated content."
+
+
+def test_update_post_not_found(mocker):
+    mocker.patch(get_post_by_id_mock, return_value=None)
+
+    data = {"title": "Updated Post", "content": "Updated content.", "image": None}
+    response, status_code = update_post("post_id_1", data)
+
+    assert status_code == 400
+    assert response["message"] == "Failed to update post"
+    assert response["status"] is False
+    assert response["error_status"]["error_code"] == "40009"
+
+def test_update_post_exception(mocker, post):
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(update_post_mock, side_effect=Exception("Database error"))
+
+    data = {"title": "Updated Post", "content": "Updated content.", "image": None}
+    response, status_code = update_post("d817221b-6f69-40f6-aaca-018b80dfebe0", data)
+
+    assert status_code == 400
+    assert response["message"] == "Failed to update post"
+    assert response["status"] is False
+    assert response["error_status"]["error_code"] == "40009"
+
+# Delete Post Tests
+
+def test_delete_post_success(mocker, post):
+    # Mock the post object with correct user_uid
+    post.user_uid = "8b0ea4f3-f057-4ed7-b72c-af904661ab06"  # Ensure this matches the user_id in the test
+
+    # Mock dependencies
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(delete_post_mock, return_value=True)
+    
+    # Mock JWT identity if used
+    mocker.patch(get_jwt_identity_mock, return_value="8b0ea4f3-f057-4ed7-b72c-af904661ab06")
+
+    # Call the function being tested
+    response, status_code = delete_post("d817221b-6f69-40f6-aaca-018b80dfebe0", "8b0ea4f3-f057-4ed7-b72c-af904661ab06")
+
+    # Print response for debugging
+    print(response)
+
+    # Assertions
+    assert status_code == 200
+    assert response["message"] == "Post deleted successfully."
+    assert response["status"] is True
+
+
+
+def test_delete_post_not_found(mocker):
+    mocker.patch(get_post_by_id_mock, return_value=None)
+
+    response, status_code = delete_post("d817221b-6f69-40f6-aaca-018b80dfebe8", "8b0ea4f3-f057-4ed7-b72c-af904661ab06")
+
+    assert status_code == 400
+    assert response["message"] == "Post not found"
+    assert response["status"] is False
+    assert response["error_status"]["error_code"] == "40008"
+
