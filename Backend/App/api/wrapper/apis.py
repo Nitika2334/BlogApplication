@@ -22,8 +22,10 @@ class SomeProtectedResource(Resource):
 class RegisterResource(Resource):
     def post(self):
         try:
+            breakpoint()
             data = request.get_json()
             response_data, status_code = user_register(data)
+            breakpoint()
             return response_data, status_code
         except Exception as e:
             error_logger('RegisterResource', 'Registration failed', error=str(e))
