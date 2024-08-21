@@ -12,27 +12,7 @@ from .schema import (
     create_post_db , get_post_by_id, update_post_db, delete_post_db, get_paginated_posts_db, get_user_by_user_id,get_comment_count_for_post
 )
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from App.config import Config
-
-def setup_psql_conn():
-    try:
-        # Create the SQLAlchemy engine
-        engine = create_engine('postgresql+psycopg2://postgres:1525@localhost:5432/Blog_app')
-        
-        # Create a new session
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        
-        # Get the connection and cursor
-        connection = engine.raw_connection()
-        cursor = connection.cursor()
-        
-        return cursor, connection
-    except Exception as e:
-        # Handle the exception (log it, re-raise it, etc.)
-        raise RuntimeError("Failed to connect to the database") from e
 
 from App.api.logger import error_logger
 
