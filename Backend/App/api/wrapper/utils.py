@@ -9,10 +9,30 @@ from flask import request, current_app, jsonify
 from .schema import (
     get_user_by_username, get_user_by_email, add_user, create_new_comment, 
     get_comments_by_post_id, update_existing_comment, delete_existing_comment, get_comment_by_comment_id,
-    create_post as create_post_db, get_post_by_id as get_post_by_id_db, 
-    update_post as update_post_db, delete_post as delete_post_db, 
-    get_paginated_posts as get_paginated_posts_db, get_user_by_user_id,get_comment_count_for_post
+    create_post_db , get_post_by_id, update_post_db, delete_post_db, get_paginated_posts_db, get_user_by_user_id,get_comment_count_for_post
 )
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from App.config import Config
+
+def setup_psql_conn():
+    try:
+        # Create the SQLAlchemy engine
+        engine = create_engine('postgresql+psycopg2://postgres:1525@localhost:5432/Blog_app')
+        
+        # Create a new session
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        
+        # Get the connection and cursor
+        connection = engine.raw_connection()
+        cursor = connection.cursor()
+        
+        return cursor, connection
+    except Exception as e:
+        # Handle the exception (log it, re-raise it, etc.)
+        raise RuntimeError("Failed to connect to the database") from e
 
 from App.api.logger import error_logger
 
@@ -57,7 +77,6 @@ def user_register(data):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40011'}
             }, 400
-
         existing_user = get_user_by_username(username)
         if existing_user:
             return {
@@ -349,10 +368,13 @@ def create_new_post(data):
             }, 400
 
         image_url = None
-        if image_file:
-            image_url = save_image(image_file)
-        user=get_user_by_user_id(get_jwt_identity())
-        new_post = create_post_db(title, content, get_jwt_identity(), user.username,image_url)
+        if image_file and allowed_file(image_file.filename):
+            filename = secure_filename(image_file.filename)
+            image_url = save_image(image_file, filename)
+        
+        user = get_user_by_user_id(get_jwt_identity())
+        new_post = create_post_db(title, content, get_jwt_identity(), user.username, image_url)
+        
         return {
             'message': 'Post created successfully',
             'status': True,
@@ -361,7 +383,7 @@ def create_new_post(data):
             'data': {
                 'post_id': str(new_post.uid),
                 'title': new_post.title,
-                'username':user.username,
+                'username': user.username,
                 'content': new_post.content,
                 'image_url': new_post.image
             }
@@ -375,7 +397,6 @@ def create_new_post(data):
             'error_status': {'error_code': '40000'}
         }, 400
     
-    
 def save_image(image_file, old_filename=None):
     if not image_file or not allowed_file(image_file.filename):
         return None
@@ -388,16 +409,18 @@ def save_image(image_file, old_filename=None):
 
     # Save the new image
     filename = secure_filename(image_file.filename)
-    upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    upload_path = os.path.join(Config['UPLOAD_FOLDER'], filename)
     image_file.save(upload_path)
     return filename
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'jpg', 'jpeg', 'png', 'gif'}
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
 
 def get_post(post_id):
     try:
-        post = get_post_by_id_db(post_id)
+        post = get_post_by_id(post_id)
         if not post:
             return {
                 'message': 'Post not found',
@@ -438,7 +461,7 @@ def update_post(post_id, data):
                 'error_status': {'error_code': '40007'}
             }, 400
 
-        post = get_post_by_id_db(post_id)
+        post = get_post_by_id(post_id)
         if not post:
             return {
                 'message': 'Post not found',
@@ -456,13 +479,18 @@ def update_post(post_id, data):
             }, 400
 
         # Handle updating image
-        if image_file:
+        image_url = None
+        if image_file and allowed_file(image_file.filename):
             old_image_url = post.image
-            image_url = save_image(image_file, old_image_url)
-            success = update_post_db(post_id, title, content, image_url)
-        else:
-            success = update_post_db(post_id, title, content)
+            filename = secure_filename(image_file.filename)
+            image_url = save_image(image_file, filename)
+            if old_image_url:
+                old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_image_url)
+                if os.path.exists(old_image_path):
+                    os.remove(old_image_path)
 
+        success = update_post_db(post_id, title, content, image_url)
+        
         if success:
             return {
                 'message': 'Post updated successfully.',
@@ -490,7 +518,7 @@ def update_post(post_id, data):
 
 def delete_post(post_id, user_id):
     try:
-        post = get_post_by_id_db(post_id)
+        post = get_post_by_id(post_id)
         if not post:
             return {
                 'message': 'Post not found',

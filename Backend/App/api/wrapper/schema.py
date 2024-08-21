@@ -4,6 +4,9 @@ from App.Models.Post.PostModel import Post
 from App.Models.Comment.CommentModel import Comment
 from App import db
 from App.api.logger import error_logger  # Import logging functions
+import os
+
+from App.config import Config
 
 
 def get_user_by_username(username):
@@ -44,7 +47,7 @@ def add_user(username, email, password):
 
 # Post Functions
 
-def create_post(title, content, user_uid, username,image=None):
+def create_post_db(title, content, user_uid, username,image=None):
     try:
         new_post = Post(title=title, content=content, user_uid=user_uid, image=image, username=username)
         db.session.add(new_post)
@@ -56,7 +59,7 @@ def create_post(title, content, user_uid, username,image=None):
         error_logger('create_post', 'Failed to create post', error=str(e), title=title, content=content)
         raise Exception("Database error")
 
-def update_post(post_id, title, content, image=None):
+def update_post_db(post_id, title, content, image=None):
     try:
         post = Post.query.filter_by(uid=post_id).first()
         if not post:
@@ -88,17 +91,17 @@ def get_post_by_id(post_id):
     except Exception as e:
         error_logger('get_post_by_id', 'Failed to retrieve post', error=str(e), post_id=post_id)
         raise Exception("Database error")
-
-def save_image(image_file, filename):
+    
+def save_image_db(image_file, filename):
     try:
-        image_path = f"App/api/uploads/{filename}"
+        image_path = os.path.join(Config['UPLOAD_FOLDER'] , filename)
         image_file.save(image_path)
         return filename
     except Exception as e:
         error_logger('save_image', 'Failed to save image', error=str(e), filename=filename)
         raise Exception("Database error")
 
-def delete_post(post_id, user_uid):
+def delete_post_db(post_id, user_uid):
     try:
         post = Post.query.filter_by(uid=post_id).first()
         if not post:
@@ -199,7 +202,7 @@ def delete_existing_comment(comment):
         raise Exception("Database error: ")
 
 
-def get_paginated_posts(page, per_page, user_uid=None):
+def get_paginated_posts_db(page, per_page, user_uid=None):
     try:
         page = int(page)
         per_page = int(per_page)
