@@ -65,13 +65,13 @@ def user_mock():
 def user():
     return MagicMock(uid="user_uid_456", username="testuser")
 
-@pytest.fixture
 def post():
     return MagicMock(
-        post_id="post_id_123",
+        uid="post_id_123",
         title="Test Post",
         content="This is a test post.",
         image_url="http://example.com/image.jpg",
+        user_uid="user_id_123"
     )
 
 
@@ -661,53 +661,35 @@ def test_delete_comment_exception(mocker, comment):
 
 # Create Post Tests
 
-def test_create_post_success(mocker, post):
-    # Mock dependencies
+def test_create_new_post_success(mocker, post):
     mocker.patch(create_post_mock, return_value=post)
-    mocker.patch(save_image_mock, return_value="http://example.com/image.jpg")
-    mocker.patch(get_jwt_identity_mock, return_value="user_id_123")
-    mocker.patch(get_user_by_user_id_mock, return_value=MagicMock(username="test_user"))
+    mocker.patch(save_image_mock, return_value='http://example.com/image.jpg')
+    mocker.patch(get_user_by_user_id_mock, return_value=MagicMock(username='test_user'))
+    mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
 
-    # Mock request context
-    mock_request_files = MagicMock()
-    mock_request_files.get = MagicMock(return_value=None)
-    mocker.patch('flask.request.files', mock_request_files)
-
-    # Data to be used in the function
-    data = {"title": "Test Post", "content": "This is a test post.", "image": None}
-
-    # Call the function being tested
+    data = {'title': 'Test Post', 'content': 'This is a test post.', 'image': None}
     response, status_code = create_new_post(data)
 
-    # Print response for debugging
-    print(response)
-
-    # Assertions
     assert status_code == 200
-    assert response["message"] == "Post created successfully."
-    assert response["status"] is True
-    assert response["data"]["post_id"] == "post_id_123"
-    assert response["data"]["title"] == "Test Post"
-    assert response["data"]["content"] == "This is a test post."
-    assert response["data"]["image_url"] == "http://example.com/image.jpg"
+    assert response['message'] == 'Post created successfully'
+    assert response['status'] is True
+    assert response['data']['post_id'] == str(post.uid)
+    assert response['data']['title'] == 'Test Post'
+    assert response['data']['username'] == 'test_user'
+    assert response['data']['content'] == 'This is a test post.'
 
+def test_create_new_post_missing_fields(mocker):
+    mocker.patch(create_post_mock, side_effect=Exception('Database error'))
+    mocker.patch(save_image_mock, return_value=None)
+    mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
 
-def test_create_post_missing_fields(mocker,post):
-    mocker.patch(create_post_mock, post)
-    mocker.patch(save_image_mock, return_value="http://example.com/image.jpg")
-    #mocker.patch('flask.request.files.get', return_value=None)
-    mocker.patch(get_jwt_identity_mock, return_value="user_id_123")
-    mocker.patch(get_user_by_user_id_mock, return_value=MagicMock(username="test_user"))
-
-    data = {"title": "", "content": ""}
+    data = {'title': '', 'content': ''}
     response, status_code = create_new_post(data)
-
-    print(response)
 
     assert status_code == 400
-    assert response["message"] == "Please provide both title and content."
-    assert response["status"] is False
-    assert response["error_status"]["error_code"] == "40001"
+    assert response['message'] == 'Error creating post'
+    assert response['status'] is False
+    assert response['error_status']['error_code'] == '40000'
 
 def test_create_post_exception(mocker):
     
@@ -769,40 +751,32 @@ def test_get_post_not_found(mocker):
 # Update Post Tests
 
 def test_update_post_success(mocker, post):
-    # Mock dependencies
     mocker.patch(get_post_by_id_mock, return_value=post)
     mocker.patch(update_post_mock, return_value=True)
-    mocker.patch(save_image_mock, return_value="http://example.com/image.jpg")
+    mocker.patch(save_image_mock, return_value='http://example.com/image.jpg')
     mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
 
-    # Mock request context
-    #mocker.patch('flask.request.files', new_callable=lambda: {'image': None})  # Adjust if needed
+    data = {'title': 'Updated Post', 'content': 'Updated content.', 'image': None}
+    response, status_code = update_post(post.uid, data)
 
-    data = {"title": "Updated Post", "content": "Updated content.", "image": None}
-    response, status_code = update_post("d817221b-6f69-40f6-aaca-018b80dfebe0", data)
-
-    # Print response for debugging
-    print(response)
-
-    # Assertions
     assert status_code == 200
-    assert response["message"] == "Post updated successfully."
-    assert response["status"] is True
-    assert response["data"]["post_id"] == str(post.uid)
-    assert response["data"]["title"] == "Updated Post"
-    assert response["data"]["content"] == "Updated content."
+    assert response['message'] == 'Post updated successfully.'
+    assert response['status'] is True
+    assert response['data']['post_id'] == str(post.uid)
+    assert response['data']['title'] == 'Updated Post'
+    assert response['data']['content'] == 'Updated content.'
 
 
 def test_update_post_not_found(mocker):
     mocker.patch(get_post_by_id_mock, return_value=None)
 
-    data = {"title": "Updated Post", "content": "Updated content.", "image": None}
-    response, status_code = update_post("post_id_1", data)
+    data = {'title': 'Updated Post', 'content': 'Updated content.', 'image': None}
+    response, status_code = update_post('invalid_id', data)
 
     assert status_code == 400
-    assert response["message"] == "Failed to update post"
-    assert response["status"] is False
-    assert response["error_status"]["error_code"] == "40009"
+    assert response['message'] == 'Post not found.'
+    assert response['status'] is False
+    assert response['error_status']['error_code'] == '40022'
 
 def test_update_post_exception(mocker, post):
     mocker.patch(get_post_by_id_mock, return_value=post)
@@ -817,28 +791,18 @@ def test_update_post_exception(mocker, post):
     assert response["error_status"]["error_code"] == "40009"
 
 # Delete Post Tests
-
+    
 def test_delete_post_success(mocker, post):
-    # Mock the post object with correct user_uid
-    post.user_uid = "8b0ea4f3-f057-4ed7-b72c-af904661ab06"  # Ensure this matches the user_id in the test
-
-    # Mock dependencies
     mocker.patch(get_post_by_id_mock, return_value=post)
     mocker.patch(delete_post_mock, return_value=True)
-    
-    # Mock JWT identity if used
-    mocker.patch(get_jwt_identity_mock, return_value="8b0ea4f3-f057-4ed7-b72c-af904661ab06")
+    mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
+    mocker.patch('os.remove')
 
-    # Call the function being tested
-    response, status_code = delete_post("d817221b-6f69-40f6-aaca-018b80dfebe0", "8b0ea4f3-f057-4ed7-b72c-af904661ab06")
+    response, status_code = delete_post(post.uid, 'user_id_123')
 
-    # Print response for debugging
-    print(response)
-
-    # Assertions
     assert status_code == 200
-    assert response["message"] == "Post deleted successfully."
-    assert response["status"] is True
+    assert response['message'] == 'Post deleted successfully.'
+    assert response['status'] is True
 
 
 

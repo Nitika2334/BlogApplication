@@ -223,22 +223,22 @@ class PostResource(Resource):
                     'error_status': {'error_code': '40006'}
                 }, 400
 
-            if request.content_type == 'multipart/form-data':
-                title = request.form.get('title')
-                content = request.form.get('content')
-                image = request.files.get('image')
-            elif request.content_type == 'application/json':
+            if request.content_type == 'application/json':
                 json_data = request.get_json()
                 title = json_data.get('title')
                 content = json_data.get('content')
-                image = None  # Image is not expected in JSON format
+                image = None
+            elif request.content_type.startswith('multipart/form-data'):
+                title = request.form.get('title')
+                content = request.form.get('content')
+                image = request.files.get('image')
             else:
                 return {
-                    'message': 'Unsupported Media Type',
+                    'message': 'Unsupported content type',
                     'status': False,
                     'type': 'custom_error',
-                    'error_status': {'error_code': '41500'}
-                }, 415
+                    'error_status': {'error_code': '40013'}
+                }, 400
 
             data = {
                 'title': title,

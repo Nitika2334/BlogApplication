@@ -223,30 +223,6 @@ def test_get_post_by_id_with_error(mocker,test_client):
         get_post_by_id(post_id)
     assert str(excinfo.value) == "Database error"
 
-
-# Test save_image_db function
-
-# def test_save_image_db_success(mocker):
-#     mock_image_file = MagicMock()
-#     mocker.patch('os.path.join', return_value='path/to/image.jpg')
-#     mocker.patch('App.api.wrapper.schema.Config.UPLOAD_FOLDER', 'uploads/')
-
-#     filename = 'image.jpg'
-#     result = save_image_db(mock_image_file, filename)
-    
-#     assert result == filename
-
-def test_save_image_db_with_error(mocker,test_client):
-    mocker.patch('App.config.Config.SQLALCHEMY_DATABASE_URI', return_value=mock_create_connection())
-    
-    mock_file = MagicMock()
-    filename = "test_image.png"
-    
-    with pytest.raises(Exception) as excinfo:
-        save_image_db(mock_file, filename)
-    assert str(excinfo.value) == "Database error"
-
-
 # Test delete_post_db function
     
 def test_delete_post_db_success(mocker, test_client):

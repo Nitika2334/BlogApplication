@@ -430,15 +430,9 @@ def update_post(post_id, data):
                 'error_status': {'error_code': '40022'}
             }, 400
 
-        if data.content_type == 'application/json':
-            json_data = data.get_json()
-            title = json_data.get('title')
-            content = json_data.get('content')
-            new_image_base64 = json_data.get('image')  # Assume image is a Base64 string
-        else:
-            title = data.form.get('title')
-            content = data.form.get('content')
-            new_image_file = data.files.get('image')
+        title = data.get('title')
+        content = data.get('content')
+        new_image_file = data.get('image')
 
         if title:
             post.title = title
@@ -447,9 +441,6 @@ def update_post(post_id, data):
 
         if new_image_file:
             new_image_url = save_image(new_image_file, post.image_url)
-            post.image_url = new_image_url
-        elif new_image_base64:
-            new_image_url = save_image_from_base64(new_image_base64, post.image_url)
             post.image_url = new_image_url
 
         success = update_post_db(post)
