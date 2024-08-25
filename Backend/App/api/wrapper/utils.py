@@ -341,29 +341,14 @@ import uuid
 
 def create_new_post(data):
     try:
-        if data.content_type == 'application/json':
-            json_data = data.get_json()
-            title = json_data.get('title')
-            content = json_data.get('content')
-            image_base64 = json_data.get('image')  
-        else:
-            title = data.form.get('title')
-            content = data.form.get('content')
-            image_file = data.files.get('image')
+        title = data.get('title')
+        content = data.get('content')
+        image_file = data.get('image')
 
-        if not title or not content:
-            return {
-                'message': 'Title and content are required',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40012'}
-            }, 400
 
         image_url = None
         if image_file:
             image_url = save_image(image_file)
-        elif image_base64:
-            image_url = save_image_from_base64(image_base64)
 
         user = get_user_by_user_id(get_jwt_identity())
         new_post = create_post_db(title, content, get_jwt_identity(), user.username, image_url)
@@ -404,27 +389,7 @@ def save_image(image_file, current_image_url=None):
         return current_image_url
     except Exception as e:
         error_logger('save_image', 'Failed to save image', error=str(e))
-        return None
-
-def save_image_from_base64(image_base64, current_image_url=None):
-    try:
-        if image_base64:
-            image_data = base64.b64decode(image_base64)
-            image = Image.open(BytesIO(image_data))
-            filename = secure_filename(f'image_{str(uuid.uuid4())}.png')
-            file_path = os.path.join(Config.UPLOAD_FOLDER, filename)
-            image.save(file_path)
-
-            if current_image_url and os.path.exists(current_image_url):
-                os.remove(current_image_url)
-
-            return file_path
-        return current_image_url
-    except Exception as e:
-        error_logger('save_image_from_base64', 'Failed to save image from Base64', error=str(e))
-        return None
-
-        
+        return None        
 
 def get_post(post_id):
     try:

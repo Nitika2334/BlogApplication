@@ -172,14 +172,28 @@ class CommentResource(Resource):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'},
             }, 400
-        
+
 class PostResource(Resource):
     @jwt_required()
     def post(self):
         try:
-            title = request.form.get('title')
-            content = request.form.get('content')
-            image = request.files.get('image')
+            # Check the content type to determine how to process the request
+            if request.content_type == 'application/json':
+                json_data = request.get_json()
+                title = json_data.get('title')
+                content = json_data.get('content')
+                image = None
+            elif request.content_type.startswith('multipart/form-data'):
+                title = request.form.get('title')
+                content = request.form.get('content')
+                image = request.files.get('image')
+            else:
+                return {
+                    'message': 'Unsupported content type',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40013'}
+                }, 400
 
             data = {
                 'title': title,
@@ -200,7 +214,6 @@ class PostResource(Resource):
 
     @jwt_required()
     def put(self, post_id):
-        
         try:
             if post_id is None:
                 return {
@@ -210,7 +223,29 @@ class PostResource(Resource):
                     'error_status': {'error_code': '40006'}
                 }, 400
 
-            data = request.get_json()
+            if request.content_type == 'multipart/form-data':
+                title = request.form.get('title')
+                content = request.form.get('content')
+                image = request.files.get('image')
+            elif request.content_type == 'application/json':
+                json_data = request.get_json()
+                title = json_data.get('title')
+                content = json_data.get('content')
+                image = None  # Image is not expected in JSON format
+            else:
+                return {
+                    'message': 'Unsupported Media Type',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '41500'}
+                }, 415
+
+            data = {
+                'title': title,
+                'content': content,
+                'image': image
+            }
+
             response_data, status_code = update_post(post_id, data)
             return response_data, status_code
         except Exception as e:
@@ -221,7 +256,6 @@ class PostResource(Resource):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'}
             }, 400
-
 
     @jwt_required()
     def get(self, post_id):
@@ -245,7 +279,6 @@ class PostResource(Resource):
                 'error_status': {'error_code': '40005'}
             }, 400
 
-
     @jwt_required()
     def delete(self, post_id):
         try:
@@ -268,6 +301,7 @@ class PostResource(Resource):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'}
             }, 400
+
 
 class HomePageResource(Resource):
     @jwt_required()
