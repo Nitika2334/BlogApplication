@@ -1,3 +1,4 @@
+import json
 from flask import request
 from flask_restful import Resource
 from App.api.wrapper.utils import user_register, user_login, user_logout, get_comments, create_comment, update_comment, delete_comment
@@ -177,13 +178,33 @@ class PostResource(Resource):
     @jwt_required()
     def post(self):
         try:
-            # Check the content type to determine how to process the request
-            if request.content_type == 'application/json':
-                json_data = request.get_json()
-                title = json_data.get('title')
-                content = json_data.get('content')
-                image = None
-            elif request.content_type.startswith('multipart/form-data'):
+            content_type = request.content_type
+            if content_type is None:
+                return {
+                    'message': 'Content type is missing',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40014'}
+                }, 400
+
+            # Log the content type and request data for debugging
+            print(f"Content-Type: {content_type}")
+            print(f"Raw request data: {request.data}")
+
+            if content_type == 'application/json':
+                try:
+                    json_data = request.get_json(force=True)  # force=True to bypass Content-Type header
+                    title = json_data.get('title')
+                    content = json_data.get('content')
+                    image = None
+                except json.JSONDecodeError as e:
+                    return {
+                        'message': 'Invalid JSON payload',
+                        'status': False,
+                        'type': 'custom_error',
+                        'error_status': {'error_code': '40015'}
+                    }, 400
+            elif content_type.startswith('multipart/form-data'):
                 title = request.form.get('title')
                 content = request.form.get('content')
                 image = request.files.get('image')
@@ -194,6 +215,15 @@ class PostResource(Resource):
                     'type': 'custom_error',
                     'error_status': {'error_code': '40013'}
                 }, 400
+            
+            if not title or not content:
+                return {
+                    'message': 'Title and content are required',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40012'}
+                }, 400
+
 
             data = {
                 'title': title,
@@ -223,12 +253,33 @@ class PostResource(Resource):
                     'error_status': {'error_code': '40006'}
                 }, 400
 
-            if request.content_type == 'application/json':
-                json_data = request.get_json()
-                title = json_data.get('title')
-                content = json_data.get('content')
-                image = None
-            elif request.content_type.startswith('multipart/form-data'):
+            content_type = request.content_type
+            if content_type is None:
+                return {
+                    'message': 'Content type is missing',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40014'}
+                }, 400
+
+            # Log the content type and request data for debugging
+            print(f"Content-Type: {content_type}")
+            print(f"Raw request data: {request.data}")
+
+            if content_type == 'application/json':
+                try:
+                    json_data = request.get_json(force=True)  # force=True to bypass Content-Type header
+                    title = json_data.get('title')
+                    content = json_data.get('content')
+                    image = None
+                except json.JSONDecodeError as e:
+                    return {
+                        'message': 'Invalid JSON payload',
+                        'status': False,
+                        'type': 'custom_error',
+                        'error_status': {'error_code': '40015'}
+                    }, 400
+            elif content_type.startswith('multipart/form-data'):
                 title = request.form.get('title')
                 content = request.form.get('content')
                 image = request.files.get('image')
@@ -238,6 +289,14 @@ class PostResource(Resource):
                     'status': False,
                     'type': 'custom_error',
                     'error_status': {'error_code': '40013'}
+                }, 400
+            
+            if not title or not content:
+                return {
+                    'message': 'Title and content are required',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40012'}
                 }, 400
 
             data = {

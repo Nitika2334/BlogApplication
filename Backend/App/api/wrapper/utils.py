@@ -350,8 +350,20 @@ def create_new_post(data):
         if image_file:
             image_url = save_image(image_file)
 
-        user = get_user_by_user_id(get_jwt_identity())
-        new_post = create_post_db(title, content, get_jwt_identity(), user.username, image_url)
+        user_uid = get_jwt_identity()
+        user = get_user_by_user_id(user_uid)
+
+        print(user)
+
+        if user is None:
+            return {
+                'message': 'User not found.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40007'}
+            }, 400
+        
+        new_post = create_post_db(title, content, user_uid, user.username, image_url)
         
         return {
             'message': 'Post created successfully',
@@ -421,29 +433,36 @@ def get_post(post_id):
 
 def update_post(post_id, data):
     try:
+        title = data.get('title')
+        content = data.get('content')
+        image_file = request.files.get('image')
+        user_id = get_jwt_identity()
+
         post = get_post_by_id(post_id)
         if not post:
             return {
-                'message': 'Post not found.',
+                'message': 'Post not found',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40022'}
+                'error_status': {'error_code': '40008'}
             }, 400
 
-        title = data.get('title')
-        content = data.get('content')
-        new_image_file = data.get('image')
+        if str(post.user_uid) != user_id:
+            return {
+                'message': 'You are not authorized to update this post.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40006'}
+            }, 400
 
-        if title:
-            post.title = title
-        if content:
-            post.content = content
+        # Handle updating image
+        if image_file:
+            old_image_url = post.image
+            image_url = save_image(image_file, old_image_url)
+            success = update_post_db(post_id, title, content, image_url)
+        else:
+            success = update_post_db(post_id, title, content)
 
-        if new_image_file:
-            new_image_url = save_image(new_image_file, post.image_url)
-            post.image_url = new_image_url
-
-        success = update_post_db(post)
         if success:
             return {
                 'message': 'Post updated successfully.',
@@ -466,6 +485,7 @@ def update_post(post_id, data):
             'type': 'custom_error',
             'error_status': {'error_code': '40009'}
         }, 400
+
 
 
 def delete_post(post_id, user_id):

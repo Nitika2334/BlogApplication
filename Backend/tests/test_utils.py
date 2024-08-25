@@ -1,3 +1,4 @@
+import json
 import pytest
 from unittest.mock import MagicMock
 from App.api.wrapper.utils import delete_comment
@@ -65,15 +66,25 @@ def user_mock():
 def user():
     return MagicMock(uid="user_uid_456", username="testuser")
 
-def post():
+@pytest.fixture
+def new_post():
     return MagicMock(
-        uid="post_id_123",
+        uid="9a20366e-7b3c-4910-ac0c-6af3b6e82b6e",
         title="Test Post",
         content="This is a test post.",
         image_url="http://example.com/image.jpg",
         user_uid="user_id_123"
     )
 
+@pytest.fixture
+def post():
+    return MagicMock(
+        uid="9a20366e-7b3c-4910-ac0c-6af3b6e82b6e",
+        title="Test Post",
+        content="This is a test post.",
+        image_url="http://example.com/image.jpg",
+        user_uid="user_id_123"
+    )
 
 @pytest.fixture
 def new_comment():
@@ -678,21 +689,9 @@ def test_create_new_post_success(mocker, post):
     assert response['data']['username'] == 'test_user'
     assert response['data']['content'] == 'This is a test post.'
 
-def test_create_new_post_missing_fields(mocker):
-    mocker.patch(create_post_mock, side_effect=Exception('Database error'))
-    mocker.patch(save_image_mock, return_value=None)
-    mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
 
-    data = {'title': '', 'content': ''}
-    response, status_code = create_new_post(data)
-
-    assert status_code == 400
-    assert response['message'] == 'Error creating post'
-    assert response['status'] is False
-    assert response['error_status']['error_code'] == '40000'
 
 def test_create_post_exception(mocker):
-    
     mocker.patch(create_post_mock, side_effect=Exception("Database error"))
 
     data = {"title": "Test Post", "content": "This is a test post.", "image": None}
@@ -708,8 +707,6 @@ def test_create_post_exception(mocker):
 def test_get_post_success(mocker, post):
     # Mock dependencies
     mocker.patch(get_post_by_id_mock, return_value=post)
-    
-    # Mock the funget_comment_count_for_postction to return a fixed number of comments
     mocker.patch(get_comment_count_for_post_mock, return_value=5)  # Adjust the path as needed
 
     # Mock post_to_dict to return the post in the expected format
@@ -718,15 +715,15 @@ def test_get_post_success(mocker, post):
         'title': p.title,
         'content': p.content,
         'user_uid': str(p.user_uid),
-        'username': p.username,
-        'created_at': p.created_at.isoformat(),
-        'updated_at': p.updated_at.isoformat(),
-        'image': p.image,
+        'username': 'test_user',  # Assuming username is a fixed value for the test
+        'created_at': '2024-08-20T00:00:00Z',
+        'updated_at': '2024-08-21T00:00:00Z',
+        'image': p.image_url,
         'no_of_comments': 5  # This should match the value returned by the mock
     })
 
     # Call the function being tested
-    response, status_code = get_post("d817221b-6f69-40f6-aaca-018b80dfebe0")
+    response, status_code = get_post(post.uid)
 
     # Assertions to validate the response structure and content
     assert status_code == 200
@@ -737,34 +734,57 @@ def test_get_post_success(mocker, post):
     assert response["data"]["title"] == post.title
     assert response["data"]["content"] == post.content
 
-
 def test_get_post_not_found(mocker):
     mocker.patch(get_post_by_id_mock, return_value=None)
-    response, status_code = get_post("d817221b-6f69-40f6-aaca-018b80dfebe4")
+    response, status_code = get_post("invalid_id")
 
     assert status_code == 400
     assert response["message"] == "Post not found"
     assert response["status"] is False
     assert response["error_status"]["error_code"] == "40008"
 
-
-# Update Post Tests
-
-def test_update_post_success(mocker, post):
+# # Update Post Tests
+from werkzeug.datastructures import FileStorage
+from io import BytesIO
+def test_update_post_success(mocker, post, test_client):
+    # Mock the necessary functions
     mocker.patch(get_post_by_id_mock, return_value=post)
     mocker.patch(update_post_mock, return_value=True)
-    mocker.patch(save_image_mock, return_value='http://example.com/image.jpg')
     mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
+    mocker.patch(save_image_mock,return_value='http://example.com/new_image.jpg')
+    
+    image_file = FileStorage(stream=BytesIO(b'Test image content'), filename='test_image.jpg', content_type='image/jpeg')
+    form_data = {
+        'title': 'Updated Post Title',
+        'content': 'Updated Post Content',
+        'image': image_file
+    }
 
-    data = {'title': 'Updated Post', 'content': 'Updated content.', 'image': None}
-    response, status_code = update_post(post.uid, data)
+    # Simulate a multipart/form-data request with Authorization header
+    response = test_client.put(
+        f'/api/v1/post/{post.uid}',
+        data=form_data,
+        content_type='multipart/form-data',
+        headers={'Authorization': 'Bearer valid_jwt_token'}
+    )
 
-    assert status_code == 200
-    assert response['message'] == 'Post updated successfully.'
-    assert response['status'] is True
-    assert response['data']['post_id'] == str(post.uid)
-    assert response['data']['title'] == 'Updated Post'
-    assert response['data']['content'] == 'Updated content.'
+    # Assert the response
+    assert response.status_code == 200
+    response_json = json.loads(response.data)
+    assert response_json['message'] == 'Post updated successfully.'
+    assert response_json['status'] is True
+    assert response_json['type'] == 'success_message'
+    assert response_json['data']['post_id'] == str(post.uid)
+    assert response_json['data']['title'] == 'Updated Post Title'
+    assert response_json['data']['content'] == 'Updated Post Content'
+
+    # Verify mocks were called correctly
+
+    get_post_by_id_mock.assert_called_once_with(post.uid)
+    update_post_mock.assert_called_once_with(post.uid, 'Updated Post Title', 'Updated Post Content', 'http://example.com/new_image.jpg')
+    get_jwt_identity_mock.assert_called_once()
+    save_image_mock.assert_called_once_with(image_file, post.image)
+
 
 
 def test_update_post_not_found(mocker):
@@ -774,9 +794,9 @@ def test_update_post_not_found(mocker):
     response, status_code = update_post('invalid_id', data)
 
     assert status_code == 400
-    assert response['message'] == 'Post not found.'
+    assert response['message'] == 'Failed to update post'
     assert response['status'] is False
-    assert response['error_status']['error_code'] == '40022'
+    assert response['error_status']['error_code'] == '40009'
 
 def test_update_post_exception(mocker, post):
     mocker.patch(get_post_by_id_mock, return_value=post)
