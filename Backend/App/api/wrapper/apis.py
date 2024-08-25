@@ -177,7 +177,16 @@ class PostResource(Resource):
     @jwt_required()
     def post(self):
         try:
-            data = request.get_json()
+            title = request.form.get('title')
+            content = request.form.get('content')
+            image = request.files.get('image')
+
+            data = {
+                'title': title,
+                'content': content,
+                'image': image
+            }
+
             response_data, status_code = create_new_post(data)
             return response_data, status_code
         except Exception as e:

@@ -5,7 +5,7 @@ import time
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt
-from flask import request, current_app, jsonify
+from flask import request, jsonify
 from .schema import (
     get_user_by_username, get_user_by_email, add_user, create_new_comment, 
     get_comments_by_post_id, update_existing_comment, delete_existing_comment, get_comment_by_comment_id,
@@ -13,7 +13,6 @@ from .schema import (
 )
 
 from App.config import Config
-
 from App.api.logger import error_logger
 
 REVOKED_TOKENS = {}
@@ -333,11 +332,24 @@ def post_to_dict(post):
         'no_of_comments' : get_comment_count_for_post(post.uid)
     }
 
+from werkzeug.utils import secure_filename
+import os
+import base64
+from io import BytesIO
+from PIL import Image
+import uuid
+
 def create_new_post(data):
     try:
-        title = data.get('title')
-        content = data.get('content')
-        image_file = request.files.get('image')
+        if data.content_type == 'application/json':
+            json_data = data.get_json()
+            title = json_data.get('title')
+            content = json_data.get('content')
+            image_base64 = json_data.get('image')  
+        else:
+            title = data.form.get('title')
+            content = data.form.get('content')
+            image_file = data.files.get('image')
 
         if not title or not content:
             return {
@@ -348,10 +360,11 @@ def create_new_post(data):
             }, 400
 
         image_url = None
-        if image_file and allowed_file(image_file.filename):
-            filename = secure_filename(image_file.filename)
-            image_url = save_image(image_file, filename)
-        
+        if image_file:
+            image_url = save_image(image_file)
+        elif image_base64:
+            image_url = save_image_from_base64(image_base64)
+
         user = get_user_by_user_id(get_jwt_identity())
         new_post = create_post_db(title, content, get_jwt_identity(), user.username, image_url)
         
@@ -376,27 +389,42 @@ def create_new_post(data):
             'type': 'custom_error',
             'error_status': {'error_code': '40000'}
         }, 400
-    
-def save_image(image_file, old_filename=None):
-    if not image_file or not allowed_file(image_file.filename):
+
+def save_image(image_file, current_image_url=None):
+    try:
+        if image_file:
+            filename = secure_filename(image_file.filename)
+            file_path = os.path.join(Config.UPLOAD_FOLDER, filename)
+            image_file.save(file_path)
+            
+            if current_image_url and os.path.exists(current_image_url):
+                os.remove(current_image_url)
+
+            return file_path
+        return current_image_url
+    except Exception as e:
+        error_logger('save_image', 'Failed to save image', error=str(e))
         return None
 
-    # Delete old image if it exists
-    if old_filename:
-        old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_filename)
-        if os.path.exists(old_image_path):
-            os.remove(old_image_path)
+def save_image_from_base64(image_base64, current_image_url=None):
+    try:
+        if image_base64:
+            image_data = base64.b64decode(image_base64)
+            image = Image.open(BytesIO(image_data))
+            filename = secure_filename(f'image_{str(uuid.uuid4())}.png')
+            file_path = os.path.join(Config.UPLOAD_FOLDER, filename)
+            image.save(file_path)
 
-    # Save the new image
-    filename = secure_filename(image_file.filename)
-    upload_path = os.path.join(Config['UPLOAD_FOLDER'], filename)
-    image_file.save(upload_path)
-    return filename
+            if current_image_url and os.path.exists(current_image_url):
+                os.remove(current_image_url)
 
-def allowed_file(filename):
-    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+            return file_path
+        return current_image_url
+    except Exception as e:
+        error_logger('save_image_from_base64', 'Failed to save image from Base64', error=str(e))
+        return None
 
+        
 
 def get_post(post_id):
     try:
@@ -428,49 +456,38 @@ def get_post(post_id):
 
 def update_post(post_id, data):
     try:
-        title = data.get('title')
-        content = data.get('content')
-        image_file = request.files.get('image')
-        user_id = get_jwt_identity()
-
-        if not title and not content and not image_file:
-            return {
-                'message': 'Title, content, or image is required.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40007'}
-            }, 400
-
         post = get_post_by_id(post_id)
         if not post:
             return {
-                'message': 'Post not found',
+                'message': 'Post not found.',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40008'}
+                'error_status': {'error_code': '40022'}
             }, 400
 
-        if str(post.user_uid) != user_id:
-            return {
-                'message': 'You are not authorized to update this post.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40006'}
-            }, 400
+        if data.content_type == 'application/json':
+            json_data = data.get_json()
+            title = json_data.get('title')
+            content = json_data.get('content')
+            new_image_base64 = json_data.get('image')  # Assume image is a Base64 string
+        else:
+            title = data.form.get('title')
+            content = data.form.get('content')
+            new_image_file = data.files.get('image')
 
-        # Handle updating image
-        image_url = None
-        if image_file and allowed_file(image_file.filename):
-            old_image_url = post.image
-            filename = secure_filename(image_file.filename)
-            image_url = save_image(image_file, filename)
-            if old_image_url:
-                old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_image_url)
-                if os.path.exists(old_image_path):
-                    os.remove(old_image_path)
+        if title:
+            post.title = title
+        if content:
+            post.content = content
 
-        success = update_post_db(post_id, title, content, image_url)
-        
+        if new_image_file:
+            new_image_url = save_image(new_image_file, post.image_url)
+            post.image_url = new_image_url
+        elif new_image_base64:
+            new_image_url = save_image_from_base64(new_image_base64, post.image_url)
+            post.image_url = new_image_url
+
+        success = update_post_db(post)
         if success:
             return {
                 'message': 'Post updated successfully.',
@@ -495,7 +512,6 @@ def update_post(post_id, data):
         }, 400
 
 
-
 def delete_post(post_id, user_id):
     try:
         post = get_post_by_id(post_id)
@@ -515,15 +531,11 @@ def delete_post(post_id, user_id):
                 'error_status': {'error_code': '40006'}
             }, 400
 
-        old_image_url = post.image
+        if post.image_url and os.path.exists(post.image_url):
+            os.remove(post.image_url)
         success = delete_post_db(post_id, user_id)
 
         if success:
-            # Delete the image file
-            if old_image_url:
-                image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_image_url)
-                if os.path.exists(image_path):
-                    os.remove(image_path)
             return {
                 'message': 'Post deleted successfully.',
                 'status': True,
