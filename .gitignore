@@ -1,0 +1,13 @@
+# Ignore all __pycache__ directories
+**/__pycache__/
+
+# If you want to be explicit, you can list them individually (this is optional)
+Backend/__pycache__/
+Backend/App/__pycache__/
+Backend/App/api/__pycache__/
+Backend/App/api/wrapper/__pycache__/
+Backend/App/Models/Comment/__pycache__/
+Backend/App/Models/Post/__pycache__/
+Backend/App/Models/User/__pycache__/
+Backend/tests/__pycache__/
+Backend/migrations/__pycache__/
