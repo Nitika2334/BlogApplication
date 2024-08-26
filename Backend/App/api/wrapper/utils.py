@@ -5,15 +5,14 @@ import time
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt
-from flask import request, current_app, jsonify
+from flask import request, jsonify
 from .schema import (
     get_user_by_username, get_user_by_email, add_user, create_new_comment, 
     get_comments_by_post_id, update_existing_comment, delete_existing_comment, get_comment_by_comment_id,
-    create_post as create_post_db, get_post_by_id as get_post_by_id_db, 
-    update_post as update_post_db, delete_post as delete_post_db, 
-    get_paginated_posts as get_paginated_posts_db, get_user_by_user_id,get_comment_count_for_post
+    create_post_db , get_post_by_id, update_post_db, delete_post_db, get_paginated_posts_db, get_user_by_user_id,get_comment_count_for_post
 )
 
+from App.config import Config
 from App.api.logger import error_logger
 
 REVOKED_TOKENS = {}
@@ -57,7 +56,6 @@ def user_register(data):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40011'}
             }, 400
-
         existing_user = get_user_by_username(username)
         if existing_user:
             return {
@@ -327,18 +325,75 @@ def post_to_dict(post):
         'title': post.title,
         'content': post.content,
         'user_uid': str(post.user_uid),
-        'username':post.username,
+        'username': post.username,
         'created_at': post.created_at.isoformat(),
         'updated_at': post.updated_at.isoformat(),
-        'image': post.image,
-        'no_of_comments' : get_comment_count_for_post(post.uid)
+        'image': get_cached_image(post.image),  # Use the cached image
+        'no_of_comments': get_comment_count_for_post(post.uid)
     }
+
+
+
+import cloudinary.uploader
+import cloudinary.api
+from werkzeug.utils import secure_filename
+import os
+import base64
+from io import BytesIO
+from PIL import Image
+import uuid
+import requests
+import base64
+
+def extract_public_id_from_url(url):
+    try:
+        parts = url.split('/')
+        public_id_with_extension = parts[-1]
+        public_id = public_id_with_extension.split('.')[0]
+        return public_id
+    except Exception as e:
+        error_logger('extract_public_id_from_url', 'Failed to extract public ID from URL', error=str(e))
+        return None
+
+from cachelib import SimpleCache
+
+cache = SimpleCache()
+
+def fetch_image_from_cloudinary(image_url):
+    try:
+        # Extract the public ID from the Cloudinary URL
+        public_id = extract_public_id_from_url(image_url)
+        
+        if not public_id:
+            raise ValueError("Invalid image URL or public ID could not be extracted.")
+        
+        # Fetch the image from Cloudinary
+        result = cloudinary.api.resource(public_id)
+        
+        # If the resource is found, return the image URL
+        if result and 'secure_url' in result:
+            return result['secure_url']
+        else:
+            raise ValueError("Image resource not found on Cloudinary")
+    except Exception as e:
+        error_logger('fetch_image_from_cloudinary', 'Failed to fetch image from Cloudinary', error=str(e))
+        return None
+
+def get_cached_image(image_url):
+    image = cache.get(image_url)
+    if image is None:
+        # Fetch image from Cloudinary
+        image = fetch_image_from_cloudinary(image_url)
+        cache.set(image_url, image, timeout=60 * 60)  # Cache for 1 hour
+    return image
+
+
 
 def create_new_post(data):
     try:
         title = data.get('title')
         content = data.get('content')
-        image_file = request.files.get('image')
+        image_file = data.get('image')
 
         if not title or not content:
             return {
@@ -351,8 +406,12 @@ def create_new_post(data):
         image_url = None
         if image_file:
             image_url = save_image(image_file)
-        user=get_user_by_user_id(get_jwt_identity())
-        new_post = create_post_db(title, content, get_jwt_identity(), user.username,image_url)
+            # Cache the image after uploading
+            get_cached_image(image_url)
+
+        user = get_user_by_user_id(get_jwt_identity())
+        new_post = create_post_db(title, content, get_jwt_identity(), user.username, image_url)
+        
         return {
             'message': 'Post created successfully',
             'status': True,
@@ -361,7 +420,7 @@ def create_new_post(data):
             'data': {
                 'post_id': str(new_post.uid),
                 'title': new_post.title,
-                'username':user.username,
+                'username': user.username,
                 'content': new_post.content,
                 'image_url': new_post.image
             }
@@ -374,30 +433,31 @@ def create_new_post(data):
             'type': 'custom_error',
             'error_status': {'error_code': '40000'}
         }, 400
-    
-    
-def save_image(image_file, old_filename=None):
-    if not image_file or not allowed_file(image_file.filename):
+
+
+def save_image(image_file, current_image_url=None):
+    try:
+        if image_file:
+            # Upload the image to Cloudinary
+            result = cloudinary.uploader.upload(image_file)
+            image_url = result.get('secure_url')
+
+            # Optionally delete the old image from Cloudinary
+            if current_image_url:
+                public_id = extract_public_id_from_url(current_image_url)
+                if public_id:
+                    cloudinary.uploader.destroy(public_id)
+
+            return image_url
+        return current_image_url
+    except Exception as e:
+        error_logger('save_image', 'Failed to save image to Cloudinary', error=str(e))
         return None
-
-    # Delete old image if it exists
-    if old_filename:
-        old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_filename)
-        if os.path.exists(old_image_path):
-            os.remove(old_image_path)
-
-    # Save the new image
-    filename = secure_filename(image_file.filename)
-    upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-    image_file.save(upload_path)
-    return filename
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'jpg', 'jpeg', 'png', 'gif'}
+        
 
 def get_post(post_id):
     try:
-        post = get_post_by_id_db(post_id)
+        post = get_post_by_id(post_id)
         if not post:
             return {
                 'message': 'Post not found',
@@ -423,30 +483,16 @@ def get_post(post_id):
             'error_status': {'error_code': '40021'}
         }, 400
 
-def update_post(post_id, data):
+def update_post(post_id, data, user_id):
     try:
-        title = data.get('title')
-        content = data.get('content')
-        image_file = request.files.get('image')
-        user_id = get_jwt_identity()
-
-        if not title and not content and not image_file:
-            return {
-                'message': 'Title, content, or image is required.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40007'}
-            }, 400
-
-        post = get_post_by_id_db(post_id)
+        post = get_post_by_id(post_id)
         if not post:
             return {
-                'message': 'Post not found',
+                'message': 'Post not found.',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40008'}
+                'error_status': {'error_code': '40022'}
             }, 400
-
         if str(post.user_uid) != user_id:
             return {
                 'message': 'You are not authorized to update this post.',
@@ -454,15 +500,30 @@ def update_post(post_id, data):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40006'}
             }, 400
+        title = data.get('title')
+        content = data.get('content')
+        new_image_file = data.get('image')
 
-        # Handle updating image
-        if image_file:
-            old_image_url = post.image
-            image_url = save_image(image_file, old_image_url)
-            success = update_post_db(post_id, title, content, image_url)
-        else:
-            success = update_post_db(post_id, title, content)
+        if title:
+            post.title = title
+        if content:
+            post.content = content
 
+        if new_image_file:
+            if post.image:
+                public_id = extract_public_id_from_url(post.image)
+                if public_id:
+                    try:
+                        cloudinary.uploader.destroy(public_id)
+                    except Exception as e:
+                        error_logger('update_post', f'Failed to delete old image: {public_id}', error=str(e))
+
+            # Upload the new image
+            new_image_url = save_image(new_image_file)
+            post.image = new_image_url
+            # Cache the new image
+            get_cached_image(new_image_url)
+        success = update_post_db(post.uid, title, content, post.image)
         if success:
             return {
                 'message': 'Post updated successfully.',
@@ -490,7 +551,7 @@ def update_post(post_id, data):
 
 def delete_post(post_id, user_id):
     try:
-        post = get_post_by_id_db(post_id)
+        post = get_post_by_id(post_id)
         if not post:
             return {
                 'message': 'Post not found',
@@ -507,15 +568,15 @@ def delete_post(post_id, user_id):
                 'error_status': {'error_code': '40006'}
             }, 400
 
-        old_image_url = post.image
+        if post.image:
+            public_id = extract_public_id_from_url(post.image)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+                cache.delete(post.image)  # Invalidate the cache
+
         success = delete_post_db(post_id, user_id)
 
         if success:
-            # Delete the image file
-            if old_image_url:
-                image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_image_url)
-                if os.path.exists(image_path):
-                    os.remove(image_path)
             return {
                 'message': 'Post deleted successfully.',
                 'status': True,
@@ -537,6 +598,7 @@ def delete_post(post_id, user_id):
             'type': 'custom_error',
             'error_status': {'error_code': '40011'}
         }, 400
+
 
 def get_home_page_data(page, size, user_id=None):
     try:

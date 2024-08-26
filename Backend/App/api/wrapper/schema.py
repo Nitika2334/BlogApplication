@@ -3,8 +3,9 @@ from App.Models.User.UserModel import User
 from App.Models.Post.PostModel import Post
 from App.Models.Comment.CommentModel import Comment
 from App import db
-from App.api.logger import error_logger  # Import logging functions
-
+from App.api.logger import error_logger
+import os
+from App.config import Config
 
 def get_user_by_username(username):
     try:
@@ -24,10 +25,10 @@ def get_user_by_email(email):
 
 def get_user_by_user_id(uid):
     try:
-        user=User.query.filter_by(uid=uid).first()
+        user = User.query.filter_by(uid=uid).first()
         return user
     except Exception as e:
-        error_logger('get_user_by_uid', 'Failed to retrieve user', error=str(e), uid=uid)
+        error_logger('get_user_by_user_id', 'Failed to retrieve user', error=str(e), uid=uid)
         raise Exception("Database error")
 
 def add_user(username, email, password):
@@ -35,7 +36,6 @@ def add_user(username, email, password):
         new_user = User(username=username, email=email, password=password)
         db.session.add(new_user)
         db.session.commit()
-        
         return new_user
     except Exception as e:
         db.session.rollback()
@@ -44,23 +44,22 @@ def add_user(username, email, password):
 
 # Post Functions
 
-def create_post(title, content, user_uid, username,image=None):
+def create_post_db(title, content, user_uid, username, image=None):
     try:
         new_post = Post(title=title, content=content, user_uid=user_uid, image=image, username=username)
         db.session.add(new_post)
         db.session.commit()
-        
         return new_post
     except Exception as e:
         db.session.rollback()
         error_logger('create_post', 'Failed to create post', error=str(e), title=title, content=content)
         raise Exception("Database error")
 
-def update_post(post_id, title, content, image=None):
+def update_post_db(post_id, title, content, image=None):
     try:
         post = Post.query.filter_by(uid=post_id).first()
         if not post:
-            error_logger('update_post', 'Post not found', post_id=post_id)
+            error_logger('update_post_db', 'Post not found', post_id=post_id)
             return False
 
         if title:
@@ -74,7 +73,7 @@ def update_post(post_id, title, content, image=None):
         return True
     except Exception as e:
         db.session.rollback()
-        error_logger('update_post', 'Failed to update post', error=str(e), post_id=post_id)
+        error_logger('update_post_db', 'Failed to update post', error=str(e), post_id=post_id)
         raise Exception("Database error")
 
 def get_post_by_id(post_id):
@@ -89,16 +88,18 @@ def get_post_by_id(post_id):
         error_logger('get_post_by_id', 'Failed to retrieve post', error=str(e), post_id=post_id)
         raise Exception("Database error")
 
-def save_image(image_file, filename):
+def save_image_db(image_file, filename):
     try:
-        image_path = f"App/api/uploads/{filename}"
+        image_path = os.path.join(Config.UPLOAD_FOLDER, filename)
+        if not os.path.exists(Config.UPLOAD_FOLDER):
+            os.makedirs(Config.UPLOAD_FOLDER)
         image_file.save(image_path)
         return filename
     except Exception as e:
-        error_logger('save_image', 'Failed to save image', error=str(e), filename=filename)
+        error_logger('save_image_db', 'Failed to save image', error=str(e), filename=filename)
         raise Exception("Database error")
 
-def delete_post(post_id, user_uid):
+def delete_post_db(post_id, user_uid):
     try:
         post = Post.query.filter_by(uid=post_id).first()
         if not post:
@@ -127,20 +128,18 @@ def delete_post(post_id, user_uid):
         }, 200
     except Exception as e:
         db.session.rollback()
-        error_logger('delete_post', 'Failed to delete post', error=str(e), post_id=post_id)
+        error_logger('delete_post_db', 'Failed to delete post', error=str(e), post_id=post_id)
         raise Exception("Database error")
 
 # Comment Functions
-    
+
 def get_comment_count_for_post(post_id):
     try:
-        # Assuming you have a Comment model with a post_id foreign key
         comment_count = Comment.query.filter_by(post_uid=post_id).count()
         return comment_count
     except Exception as e:
         error_logger('get_comment_count_for_post', 'Failed to count comments', error=str(e), post_uid=post_id)
         raise Exception("Database error")
-
 
 def get_comment_by_comment_id(comment_id):
     try:
@@ -149,7 +148,7 @@ def get_comment_by_comment_id(comment_id):
     except Exception as e:
         error_logger('get_comment_by_comment_id', 'Comment not found', error=str(e), comment_id=comment_id)
         raise Exception("Database error")
-    
+
 def get_comments_by_post_id(post_uid):
     try:
         comments = Comment.query.filter_by(post_uid=post_uid).all()
@@ -172,7 +171,7 @@ def create_new_comment(post_uid, user_uid, data, username):
         error_logger('create_new_comment', 'Failed to create comment', error=str(e), post_uid=post_uid, user_uid=user_uid, content=data['content'])
         raise Exception("Database error")
 
-def update_existing_comment(comment,data):
+def update_existing_comment(comment, data):
     try:
         if data:
             comment.content = data.get('content', comment.content)
@@ -187,19 +186,18 @@ def update_existing_comment(comment,data):
 
 def delete_existing_comment(comment):
     try:
-      if comment:
-          db.session.delete(comment)
-          db.session.commit()
-          return True
-      else:
-          return False
+        if comment:
+            db.session.delete(comment)
+            db.session.commit()
+            return True
+        else:
+            return False
     except Exception as e:
         db.session.rollback()
         error_logger('delete_existing_comment', 'Failed to delete comment', error=str(e))
-        raise Exception("Database error: ")
+        raise Exception("Database error")
 
-
-def get_paginated_posts(page, per_page, user_uid=None):
+def get_paginated_posts_db(page, per_page, user_uid=None):
     try:
         page = int(page)
         per_page = int(per_page)
@@ -215,9 +213,7 @@ def get_paginated_posts(page, per_page, user_uid=None):
 
         posts = query.offset(offset).limit(per_page).all()
 
-        
         return posts, total_posts
-    
     except Exception as e:
-        error_logger('get_paginated_posts', 'Failed to retrieve posts', error=str(e), page=page, per_page=per_page, user_uid=user_uid)
+        error_logger('get_paginated_posts_db', 'Failed to retrieve posts', error=str(e), page=page, per_page=per_page, user_uid=user_uid)
         raise Exception("Database error")

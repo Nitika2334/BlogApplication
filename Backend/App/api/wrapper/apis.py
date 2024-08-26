@@ -1,3 +1,4 @@
+import json
 from flask import request
 from flask_restful import Resource
 from App.api.wrapper.utils import user_register, user_login, user_logout, get_comments, create_comment, update_comment, delete_comment
@@ -177,7 +178,59 @@ class PostResource(Resource):
     @jwt_required()
     def post(self):
         try:
-            data = request.get_json()
+            content_type = request.content_type
+            if content_type is None:
+                return {
+                    'message': 'Content type is missing',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40014'}
+                }, 400
+
+            # Log the content type and request data for debugging
+            print(f"Content-Type: {content_type}")
+            print(f"Raw request data: {request.data}")
+
+            if content_type == 'application/json':
+                try:
+                    json_data = request.get_json(force=True)  # force=True to bypass Content-Type header
+                    title = json_data.get('title')
+                    content = json_data.get('content')
+                    image = None
+                except json.JSONDecodeError as e:
+                    return {
+                        'message': 'Invalid JSON payload',
+                        'status': False,
+                        'type': 'custom_error',
+                        'error_status': {'error_code': '40015'}
+                    }, 400
+            elif content_type.startswith('multipart/form-data'):
+                title = request.form.get('title')
+                content = request.form.get('content')
+                image = request.files.get('image')
+            else:
+                return {
+                    'message': 'Unsupported content type',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40013'}
+                }, 400
+            
+            if not title or not content:
+                return {
+                    'message': 'Title and content are required',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40012'}
+                }, 400
+
+
+            data = {
+                'title': title,
+                'content': content,
+                'image': image
+            }
+
             response_data, status_code = create_new_post(data)
             return response_data, status_code
         except Exception as e:
@@ -191,7 +244,6 @@ class PostResource(Resource):
 
     @jwt_required()
     def put(self, post_id):
-        
         try:
             if post_id is None:
                 return {
@@ -201,8 +253,59 @@ class PostResource(Resource):
                     'error_status': {'error_code': '40006'}
                 }, 400
 
-            data = request.get_json()
-            response_data, status_code = update_post(post_id, data)
+            content_type = request.content_type
+            if content_type is None:
+                return {
+                    'message': 'Content type is missing',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40014'}
+                }, 400
+
+            # Log the content type and request data for debugging
+            print(f"Content-Type: {content_type}")
+            print(f"Raw request data: {request.data}")
+
+            if content_type == 'application/json':
+                try:
+                    json_data = request.get_json(force=True)  # force=True to bypass Content-Type header
+                    title = json_data.get('title')
+                    content = json_data.get('content')
+                    image = None
+                except json.JSONDecodeError as e:
+                    return {
+                        'message': 'Invalid JSON payload',
+                        'status': False,
+                        'type': 'custom_error',
+                        'error_status': {'error_code': '40015'}
+                    }, 400
+            elif content_type.startswith('multipart/form-data'):
+                title = request.form.get('title')
+                content = request.form.get('content')
+                image = request.files.get('image')
+            else:
+                return {
+                    'message': 'Unsupported content type',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40013'}
+                }, 400
+            
+            if not title or not content:
+                return {
+                    'message': 'Title and content are required',
+                    'status': False,
+                    'type': 'custom_error',
+                    'error_status': {'error_code': '40012'}
+                }, 400
+
+            data = {
+                'title': title,
+                'content': content,
+                'image': image
+            }
+            user_id = get_jwt_identity()
+            response_data, status_code = update_post(post_id, data, user_id)
             return response_data, status_code
         except Exception as e:
             error_logger('PostResource', 'Failed to update post', post_id=post_id, error=str(e))
@@ -212,7 +315,6 @@ class PostResource(Resource):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'}
             }, 400
-
 
     @jwt_required()
     def get(self, post_id):
@@ -235,7 +337,6 @@ class PostResource(Resource):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'}
             }, 400
-
 
     @jwt_required()
     def delete(self, post_id):
