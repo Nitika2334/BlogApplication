@@ -524,7 +524,9 @@ def test_update_post_success(test_client, mocker):
     assert response.json['status'] is True
 
     # Ensure that update_post was called with the correct data
-    mock_update_post.assert_called_once_with(post_id, {**post_data, 'image': None})
+    # Adjusted to match the actual call signature
+    mock_update_post.assert_called_once_with(post_id, {**post_data, 'image': None}, 'testuser')
+
 
 
 def test_delete_post_success(test_client, mocker):
