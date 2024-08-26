@@ -325,19 +325,69 @@ def post_to_dict(post):
         'title': post.title,
         'content': post.content,
         'user_uid': str(post.user_uid),
-        'username':post.username,
+        'username': post.username,
         'created_at': post.created_at.isoformat(),
         'updated_at': post.updated_at.isoformat(),
-        'image': post.image,
-        'no_of_comments' : get_comment_count_for_post(post.uid)
+        'image': get_cached_image(post.image),  # Use the cached image
+        'no_of_comments': get_comment_count_for_post(post.uid)
     }
 
+
+
+import cloudinary.uploader
+import cloudinary.api
 from werkzeug.utils import secure_filename
 import os
 import base64
 from io import BytesIO
 from PIL import Image
 import uuid
+import requests
+import base64
+
+def extract_public_id_from_url(url):
+    try:
+        parts = url.split('/')
+        public_id_with_extension = parts[-1]
+        public_id = public_id_with_extension.split('.')[0]
+        return public_id
+    except Exception as e:
+        error_logger('extract_public_id_from_url', 'Failed to extract public ID from URL', error=str(e))
+        return None
+
+from cachelib import SimpleCache
+
+cache = SimpleCache()
+
+def fetch_image_from_cloudinary(image_url):
+    try:
+        # Extract the public ID from the Cloudinary URL
+        public_id = extract_public_id_from_url(image_url)
+        
+        if not public_id:
+            raise ValueError("Invalid image URL or public ID could not be extracted.")
+        
+        # Fetch the image from Cloudinary
+        result = cloudinary.api.resource(public_id)
+        
+        # If the resource is found, return the image URL
+        if result and 'secure_url' in result:
+            return result['secure_url']
+        else:
+            raise ValueError("Image resource not found on Cloudinary")
+    except Exception as e:
+        error_logger('fetch_image_from_cloudinary', 'Failed to fetch image from Cloudinary', error=str(e))
+        return None
+
+def get_cached_image(image_url):
+    image = cache.get(image_url)
+    if image is None:
+        # Fetch image from Cloudinary
+        image = fetch_image_from_cloudinary(image_url)
+        cache.set(image_url, image, timeout=60 * 60)  # Cache for 1 hour
+    return image
+
+
 
 def create_new_post(data):
     try:
@@ -345,25 +395,22 @@ def create_new_post(data):
         content = data.get('content')
         image_file = data.get('image')
 
+        if not title or not content:
+            return {
+                'message': 'Title and content are required',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40012'}
+            }, 400
 
         image_url = None
         if image_file:
             image_url = save_image(image_file)
+            # Cache the image after uploading
+            get_cached_image(image_url)
 
-        user_uid = get_jwt_identity()
-        user = get_user_by_user_id(user_uid)
-
-        print(user)
-
-        if user is None:
-            return {
-                'message': 'User not found.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40007'}
-            }, 400
-        
-        new_post = create_post_db(title, content, user_uid, user.username, image_url)
+        user = get_user_by_user_id(get_jwt_identity())
+        new_post = create_post_db(title, content, get_jwt_identity(), user.username, image_url)
         
         return {
             'message': 'Post created successfully',
@@ -387,21 +434,26 @@ def create_new_post(data):
             'error_status': {'error_code': '40000'}
         }, 400
 
+
 def save_image(image_file, current_image_url=None):
     try:
         if image_file:
-            filename = secure_filename(image_file.filename)
-            file_path = os.path.join(Config.UPLOAD_FOLDER, filename)
-            image_file.save(file_path)
-            
-            if current_image_url and os.path.exists(current_image_url):
-                os.remove(current_image_url)
+            # Upload the image to Cloudinary
+            result = cloudinary.uploader.upload(image_file)
+            image_url = result.get('secure_url')
 
-            return file_path
+            # Optionally delete the old image from Cloudinary
+            if current_image_url:
+                public_id = extract_public_id_from_url(current_image_url)
+                if public_id:
+                    cloudinary.uploader.destroy(public_id)
+
+            return image_url
         return current_image_url
     except Exception as e:
-        error_logger('save_image', 'Failed to save image', error=str(e))
-        return None        
+        error_logger('save_image', 'Failed to save image to Cloudinary', error=str(e))
+        return None
+        
 
 def get_post(post_id):
     try:
@@ -433,36 +485,39 @@ def get_post(post_id):
 
 def update_post(post_id, data):
     try:
-        title = data.get('title')
-        content = data.get('content')
-        image_file = request.files.get('image')
-        user_id = get_jwt_identity()
-
         post = get_post_by_id(post_id)
         if not post:
             return {
-                'message': 'Post not found',
+                'message': 'Post not found.',
                 'status': False,
                 'type': 'custom_error',
-                'error_status': {'error_code': '40008'}
+                'error_status': {'error_code': '40022'}
             }, 400
 
-        if str(post.user_uid) != user_id:
-            return {
-                'message': 'You are not authorized to update this post.',
-                'status': False,
-                'type': 'custom_error',
-                'error_status': {'error_code': '40006'}
-            }, 400
+        title = data.get('title')
+        content = data.get('content')
+        new_image_file = data.get('image')
 
-        # Handle updating image
-        if image_file:
-            old_image_url = post.image
-            image_url = save_image(image_file, old_image_url)
-            success = update_post_db(post_id, title, content, image_url)
-        else:
-            success = update_post_db(post_id, title, content)
+        if title:
+            post.title = title
+        if content:
+            post.content = content
 
+        if new_image_file:
+            if post.image:
+                public_id = extract_public_id_from_url(post.image)
+                if public_id:
+                    try:
+                        cloudinary.uploader.destroy(public_id)
+                    except Exception as e:
+                        error_logger('update_post', f'Failed to delete old image: {public_id}', error=str(e))
+
+            # Upload the new image
+            new_image_url = save_image(new_image_file)
+            post.image = new_image_url
+            # Cache the new image
+            get_cached_image(new_image_url)
+        success = update_post_db(post.uid, title, content, post.image)
         if success:
             return {
                 'message': 'Post updated successfully.',
@@ -507,8 +562,12 @@ def delete_post(post_id, user_id):
                 'error_status': {'error_code': '40006'}
             }, 400
 
-        if post.image_url and os.path.exists(post.image_url):
-            os.remove(post.image_url)
+        if post.image:
+            public_id = extract_public_id_from_url(post.image)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+                cache.delete(post.image)  # Invalidate the cache
+
         success = delete_post_db(post_id, user_id)
 
         if success:
@@ -533,6 +592,7 @@ def delete_post(post_id, user_id):
             'type': 'custom_error',
             'error_status': {'error_code': '40011'}
         }, 400
+
 
 def get_home_page_data(page, size, user_id=None):
     try:

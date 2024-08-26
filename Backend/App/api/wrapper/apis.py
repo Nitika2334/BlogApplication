@@ -173,7 +173,7 @@ class CommentResource(Resource):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'},
             }, 400
-
+        
 class PostResource(Resource):
     @jwt_required()
     def post(self):
@@ -360,7 +360,6 @@ class PostResource(Resource):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40005'}
             }, 400
-
 
 class HomePageResource(Resource):
     @jwt_required()

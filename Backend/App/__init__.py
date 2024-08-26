@@ -4,6 +4,7 @@ from flask_jwt_extended import JWTManager
 from App.config import Config
 from flask_bcrypt import Bcrypt
 from flask_migrate import Migrate
+import cloudinary
 
 db = SQLAlchemy()
 jwt = JWTManager()
@@ -13,11 +14,14 @@ migrate = Migrate()
 def create_app(config_name=None):
     app = Flask(__name__)
 
-    
     app.config.from_object(Config)
 
-    # Call the init_app method to create the uploads folder
-    Config.init_app(app)
+    # Initialize Cloudinary configuration
+    cloudinary.config(
+        cloud_name=Config.CLOUD_NAME,
+        api_key=Config.CLOUDINARY_API_KEY,
+        api_secret=Config.CLOUDINARY_API_SECRET
+    )
 
     db.init_app(app)
     jwt.init_app(app)
