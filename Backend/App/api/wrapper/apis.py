@@ -304,8 +304,8 @@ class PostResource(Resource):
                 'content': content,
                 'image': image
             }
-
-            response_data, status_code = update_post(post_id, data)
+            user_id = get_jwt_identity()
+            response_data, status_code = update_post(post_id, data, user_id)
             return response_data, status_code
         except Exception as e:
             error_logger('PostResource', 'Failed to update post', post_id=post_id, error=str(e))

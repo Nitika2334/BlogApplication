@@ -483,7 +483,7 @@ def get_post(post_id):
             'error_status': {'error_code': '40021'}
         }, 400
 
-def update_post(post_id, data):
+def update_post(post_id, data, user_id):
     try:
         post = get_post_by_id(post_id)
         if not post:
@@ -493,7 +493,13 @@ def update_post(post_id, data):
                 'type': 'custom_error',
                 'error_status': {'error_code': '40022'}
             }, 400
-
+        if str(post.user_uid) != user_id:
+            return {
+                'message': 'You are not authorized to update this post.',
+                'status': False,
+                'type': 'custom_error',
+                'error_status': {'error_code': '40006'}
+            }, 400
         title = data.get('title')
         content = data.get('content')
         new_image_file = data.get('image')
