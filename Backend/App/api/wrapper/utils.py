@@ -1,19 +1,21 @@
-import os
 import re
 import datetime
 import time
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
+
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt
-from flask import request, jsonify
 from .schema import (
     get_user_by_username, get_user_by_email, add_user, create_new_comment, 
     get_comments_by_post_id, update_existing_comment, delete_existing_comment, get_comment_by_comment_id,
     create_post_db , get_post_by_id, update_post_db, delete_post_db, get_paginated_posts_db, get_user_by_user_id,get_comment_count_for_post
 )
 
-from App.config import Config
 from App.api.logger import error_logger
+import cloudinary.uploader
+import cloudinary.api
+from cachelib import SimpleCache
+
+cache = SimpleCache()
 
 REVOKED_TOKENS = {}
 
@@ -333,18 +335,6 @@ def post_to_dict(post):
     }
 
 
-
-import cloudinary.uploader
-import cloudinary.api
-from werkzeug.utils import secure_filename
-import os
-import base64
-from io import BytesIO
-from PIL import Image
-import uuid
-import requests
-import base64
-
 def extract_public_id_from_url(url):
     try:
         parts = url.split('/')
@@ -355,9 +345,6 @@ def extract_public_id_from_url(url):
         error_logger('extract_public_id_from_url', 'Failed to extract public ID from URL', error=str(e))
         return None
 
-from cachelib import SimpleCache
-
-cache = SimpleCache()
 
 def fetch_image_from_cloudinary(image_url):
     try:

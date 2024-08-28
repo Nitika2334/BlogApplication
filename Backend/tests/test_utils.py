@@ -1,5 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
+
+from pytest_mock import mocker
 from App.api.wrapper.utils import delete_comment
 from App.api.wrapper.utils import update_comment
 from App.api.wrapper.utils import get_comments
@@ -11,7 +13,10 @@ from App.api.wrapper.utils import (
     create_new_post,
     get_post,
     update_post,
-    delete_post
+    delete_post,
+    get_home_page_data,
+    post_to_dict,
+    save_image
 )
 
 # Mocks
@@ -34,17 +39,29 @@ get_comments_by_post_id_mock = "App.api.wrapper.utils.get_comments_by_post_id"
 comment_to_dict_mock = "App.api.wrapper.utils.comment_to_dict"
 delete_existing_comment_mock = "App.api.wrapper.utils.delete_existing_comment"
 update_existing_comment_mock = "App.api.wrapper.utils.update_existing_comment"
-error_logger_mock = "App.api.logger.error_logger"
 
 #Post
-create_post_mock = "App.api.wrapper.utils.create_post_db"
 save_image_mock = "App.api.wrapper.utils.save_image"
 get_post_by_id_mock = "App.api.wrapper.utils.get_post_by_id"
-update_post_mock = "App.api.wrapper.utils.update_post"
-delete_post_mock = "App.api.wrapper.utils.delete_post"
 get_jwt_identity_mock="App.api.wrapper.utils.get_jwt_identity"
 get_comment_count_for_post_mock="App.api.wrapper.utils.get_comment_count_for_post"
 post_to_dict_mock="App.api.wrapper.utils.post_to_dict"
+delete_post_db_mock = "App.api.wrapper.utils.delete_post_db"
+extract_public_id_from_url_mock = "App.api.wrapper.utils.extract_public_id_from_url"
+cloudinary_uploader_destroy_mock = "cloudinary.uploader.destroy"
+cache_delete_mock = "App.api.wrapper.utils.cache.delete"
+error_logger_mock = "App.api.logger.error_logger"
+get_cached_image_mock = "App.api.wrapper.utils.get_cached_image"
+update_post_db_mock = "App.api.wrapper.utils.update_post_db"
+create_post_db_mock = "App.api.wrapper.utils.create_post_db"
+get_user_by_user_id_mock = "App.api.wrapper.utils.get_user_by_user_id"
+cloudinary_uploader_upload_mock = "cloudinary.uploader.upload"
+
+
+
+# Mock paths
+get_paginated_posts_db_mock = "App.api.wrapper.utils.get_paginated_posts_db"
+post_to_dict_mock = "App.api.wrapper.utils.post_to_dict"
 
 @pytest.fixture
 def users():
@@ -81,9 +98,40 @@ def post():
         uid="9a20366e-7b3c-4910-ac0c-6af3b6e82b6e",
         title="Test Post",
         content="This is a test post.",
-        image_url="http://example.com/image.jpg",
-        user_uid="user_id_123"
+        user_uid="user_id_123",
+        username="test_user",
+        image="http://example.com/image.jpg"
     )
+
+@pytest.fixture
+def mock_posts():
+    # Create a list of mock post objects
+    return [
+        {"uid": "1", "title": "First Post", "content": "Content of the first post"},
+        {"uid": "2", "title": "Second Post", "content": "Content of the second post"},
+    ]
+
+@pytest.fixture
+def new_image_file():
+    return MagicMock()
+
+@pytest.fixture
+def data():
+    return {
+        'title': 'Updated Title',
+        'content': 'Updated content',
+        'image': 'new_image_file'
+    }
+
+
+@pytest.fixture
+def new_post_data():
+    return {
+        'title': 'New Post Title',
+        'content': 'This is the content of the new post.',
+        'image': 'image_file'
+    }
+
 
 @pytest.fixture
 def new_comment():
@@ -667,3 +715,297 @@ def test_delete_comment_exception(mocker, comment):
     assert response['error_status']['error_code'] == '40018'
 
 
+def test_get_home_page_data_success(mock_posts):
+    with patch(post_to_dict_mock) as mock_post_to_dict, patch(get_paginated_posts_db_mock) as mock_get_paginated_posts_db:
+        # Mock the return values of the database function and utility function
+        mock_get_paginated_posts_db.return_value = (mock_posts, 10)
+        mock_post_to_dict.side_effect = lambda post: post
+
+        # Call the function
+        response, status_code = get_home_page_data(page=1, size=5, user_id='user123')
+
+        # Assertions
+        assert status_code == 200
+        assert response['status'] is True
+        assert response['data']['current_page'] == 1
+        assert response['data']['page_size'] == 5
+        assert response['data']['total_pages'] == 2
+        assert response['data']['total_posts'] == 10
+        assert response['data']['posts'] == mock_posts
+
+def test_get_home_page_data_failure():
+    with patch(get_paginated_posts_db_mock) as mock_get_paginated_posts_db:
+        # Set the mock to raise an exception
+        mock_get_paginated_posts_db.side_effect = Exception('DB error')
+
+        # Call the function
+        response, status_code = get_home_page_data(page=1, size=5, user_id='user123')
+
+        # Assertions
+        assert status_code == 400
+        assert response['status'] is False
+        assert response['message'] == 'Failed to retrieve home page data'
+        assert response['error_status']['error_code'] == '40016'
+
+def test_delete_post_success(mocker, post):
+    # Mock the dependencies
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(delete_post_db_mock, return_value=True)
+    mocker.patch(extract_public_id_from_url_mock, return_value="public_id")
+    mocker.patch(cloudinary_uploader_destroy_mock)
+    mocker.patch(cache_delete_mock)
+
+    # Call the function
+    response, status_code = delete_post(post_id=post.uid, user_id=post.user_uid)
+
+    # Assertions
+    assert status_code == 200
+    assert response['status'] is True
+    assert response['message'] == 'Post deleted successfully.'
+
+def test_delete_post_not_found(mocker):
+    # Mock the dependencies
+    mocker.patch(get_post_by_id_mock, return_value=None)
+
+    # Call the function
+    response, status_code = delete_post(post_id="non_existing_id", user_id="user_id_123")
+
+    # Assertions
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Post not found'
+    assert response['error_status']['error_code'] == '40008'
+
+def test_delete_post_unauthorized(mocker, post):
+    # Mock the dependencies
+    mocker.patch(get_post_by_id_mock, return_value=post)
+
+    # Call the function with a different user ID
+    response, status_code = delete_post(post_id=post.uid, user_id="different_user_id")
+
+    # Assertions
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'You are not authorized to delete this post.'
+    assert response['error_status']['error_code'] == '40006'
+
+def test_delete_post_failed_deletion(mocker, post):
+    # Mock the dependencies
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(delete_post_db_mock, return_value=False)
+
+    # Call the function
+    response, status_code = delete_post(post_id=post.uid, user_id=post.user_uid)
+
+    # Assertions
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Failed to delete post.'
+    assert response['error_status']['error_code'] == '40010'
+
+def test_delete_post_exception(mocker, post):
+    # Mock the dependencies
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(delete_post_db_mock, side_effect=Exception('DB error'))
+    mocker.patch(error_logger_mock)
+
+    # Call the function
+    response, status_code = delete_post(post_id=post.uid, user_id=post.user_uid)
+
+    # Assertions
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Failed to delete post'
+    assert response['error_status']['error_code'] == '40011'
+
+def test_post_to_dict(post, mocker):
+    # Mock the external functions
+    mocker.patch(get_cached_image_mock, return_value="http://example.com/cached_image.jpg")
+    mocker.patch(get_comment_count_for_post_mock, return_value=5)
+    
+    # Call the function
+    result = post_to_dict(post)
+    
+    # Expected result
+    expected_result = {
+        'uid': str(post.uid),
+        'title': post.title,
+        'content': post.content,
+        'user_uid': str(post.user_uid),
+        'username': post.username,
+        'created_at': post.created_at.isoformat(),
+        'updated_at': post.updated_at.isoformat(),
+        'image': "http://example.com/cached_image.jpg",
+        'no_of_comments': 5
+    }
+    
+    # Assertions
+    assert result == expected_result
+
+def test_update_post_success(mocker, post, data, new_image_file):
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(save_image_mock, return_value="http://example.com/new_image.jpg")
+    mocker.patch(extract_public_id_from_url_mock, return_value="public_id")
+    mocker.patch(cloudinary_uploader_destroy_mock)
+    mocker.patch(get_cached_image_mock)
+    mocker.patch(update_post_db_mock, return_value=True)
+
+    response, status_code = update_post(post_id=post.uid, data=data, user_id=post.user_uid)
+
+    assert status_code == 200
+    assert response['status'] is True
+    assert response['message'] == 'Post updated successfully.'
+
+def test_update_post_not_found(mocker, data):
+    mocker.patch(get_post_by_id_mock, return_value=None)
+
+    response, status_code = update_post(post_id="non_existing_id", data=data, user_id="user_id_123")
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Post not found.'
+    assert response['error_status']['error_code'] == '40022'
+
+def test_update_post_unauthorized(mocker, post, data):
+    mocker.patch(get_post_by_id_mock, return_value=post)
+
+    response, status_code = update_post(post_id=post.uid, data=data, user_id="different_user_id")
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'You are not authorized to update this post.'
+    assert response['error_status']['error_code'] == '40006'
+
+def test_update_post_image_upload_error(mocker, post, data):
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(save_image_mock, side_effect=Exception('Image upload error'))
+    mocker.patch(update_post_db_mock, return_value=True)
+
+    response, status_code = update_post(post_id=post.uid, data=data, user_id=post.user_uid)
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Failed to update post'
+    assert response['error_status']['error_code'] == '40009'
+
+def test_update_post_update_db_error(mocker, post, data):
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(save_image_mock, return_value="http://example.com/new_image.jpg")
+    mocker.patch(update_post_db_mock, return_value=False)
+
+    response, status_code = update_post(post_id=post.uid, data=data, user_id=post.user_uid)
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Failed to update post.'
+    assert response['error_status']['error_code'] == '40009'
+
+def test_update_post_exception(mocker, post, data):
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(save_image_mock, return_value="http://example.com/new_image.jpg")
+    mocker.patch(update_post_db_mock, side_effect=Exception('DB error'))
+    mocker.patch(error_logger_mock)
+
+    response, status_code = update_post(post_id=post.uid, data=data, user_id=post.user_uid)
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Failed to update post'
+    assert response['error_status']['error_code'] == '40009'
+
+def test_create_new_post_success(mocker, new_post_data):
+    mocker.patch(get_user_by_user_id_mock, return_value=MagicMock(username='test_user'))
+    mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
+    mocker.patch(create_post_db_mock, return_value=MagicMock(uid='post_id', title='New Post Title', content='This is the content of the new post.', image='http://example.com/image.jpg'))
+    mocker.patch(save_image_mock, return_value='http://example.com/image.jpg')
+    mocker.patch(get_cached_image_mock)
+    
+    response, status_code = create_new_post(new_post_data)
+
+    assert status_code == 200
+    assert response['status'] is True
+    assert response['message'] == 'Post created successfully'
+    assert response['data']['post_id'] == 'post_id'
+    assert response['data']['title'] == 'New Post Title'
+
+def test_create_new_post_missing_title_or_content(mocker, new_post_data):
+    data_missing_title = new_post_data.copy()
+    data_missing_title.pop('title')
+
+    response, status_code = create_new_post(data_missing_title)
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Title and content are required'
+    assert response['error_status']['error_code'] == '40012'
+
+def test_create_new_post_exception(mocker, new_post_data):
+    mocker.patch(get_user_by_user_id_mock, return_value=MagicMock(username='test_user'))
+    mocker.patch(get_jwt_identity_mock, return_value='user_id_123')
+    mocker.patch(create_post_db_mock, side_effect=Exception('DB error'))
+    mocker.patch(save_image_mock, return_value='http://example.com/image.jpg')
+    mocker.patch(error_logger_mock)
+
+    response, status_code = create_new_post(new_post_data)
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Error creating post'
+    assert response['error_status']['error_code'] == '40000'
+
+def test_save_image_success(mocker):
+    mocker.patch(cloudinary_uploader_upload_mock, return_value={'secure_url': 'http://example.com/image.jpg'})
+    mocker.patch(extract_public_id_from_url_mock, return_value='public_id')
+    mocker.patch(cloudinary_uploader_destroy_mock)
+
+    image_url = save_image('image_file')
+
+    assert image_url == 'http://example.com/image.jpg'
+
+def test_save_image_exception(mocker):
+    mocker.patch(cloudinary_uploader_upload_mock, side_effect=Exception('Upload error'))
+    mocker.patch(error_logger_mock)
+
+    image_url = save_image('image_file')
+
+    assert image_url is None
+
+def test_get_post_success(mocker, post):
+    mocker.patch(get_post_by_id_mock, return_value=post)
+    mocker.patch(post_to_dict_mock, return_value={
+        'uid': post.uid,
+        'title': post.title,
+        'content': post.content,
+        'user_uid': post.user_uid,
+        'username': post.username,
+        'image': post.image,
+        'created_at': '2024-08-25T00:00:00Z'
+    })
+    
+    response, status_code = get_post(post_id=post.uid)
+
+    assert status_code == 200
+    assert response['status'] is True
+    assert response['message'] == 'Post retrieved successfully'
+    assert response['data']['uid'] == post.uid
+
+def test_get_post_not_found(mocker):
+    mocker.patch(get_post_by_id_mock, return_value=None)
+
+    response, status_code = get_post(post_id='non_existing_id')
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Post not found'
+    assert response['error_status']['error_code'] == '40008'
+
+def test_get_post_exception(mocker):
+    mocker.patch(get_post_by_id_mock, side_effect=Exception('DB error'))
+    mocker.patch(error_logger_mock)
+
+    response, status_code = get_post(post_id='any_id')
+
+    assert status_code == 400
+    assert response['status'] is False
+    assert response['message'] == 'Error retrieving post'
+    assert response['error_status']['error_code'] == '40021'
