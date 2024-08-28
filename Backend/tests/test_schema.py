@@ -5,7 +5,7 @@ from App.api.wrapper.schema import (
     create_post_db, update_post_db, get_post_by_id, save_image_db,
     delete_post_db, get_comment_count_for_post, get_comment_by_comment_id,
     get_comments_by_post_id, create_new_comment, update_existing_comment,
-    delete_existing_comment
+    delete_existing_comment,get_paginated_posts_db
 )
 from App.Models.User.UserModel import User
 from App.Models.Post.PostModel import Post
@@ -409,7 +409,59 @@ def test_delete_existing_comment_with_error(mocker, test_client):
     
     assert str(excinfo.value) == "Database error"
 
+# Test get_paginated_posts_db function
 
+def test_get_paginated_posts_db_success(mocker):
+    # Create mock Post instances
+    mock_posts = [MagicMock(spec=Post), MagicMock(spec=Post)]
+    mock_total_posts = 10
 
+    # Mock the query object
+    mock_query = MagicMock()
+    mock_query.order_by.return_value.filter.return_value.count.return_value = mock_total_posts
+    mock_query.order_by.return_value.filter.return_value.offset.return_value.limit.return_value.all.return_value = mock_posts
 
+    # Patch the query methods
+    mocker.patch('App.api.wrapper.schema.db.session.query', return_value=mock_query)
 
+    page = 1
+    per_page = 2
+    user_uid = 1
+
+    posts, total_posts = get_paginated_posts_db(page, per_page, user_uid)
+
+    assert posts == mock_posts
+    assert total_posts == mock_total_posts
+
+def test_get_paginated_posts_db_without_user_uid_success(mocker):
+    # Create mock Post instances
+    mock_posts = [MagicMock(spec=Post), MagicMock(spec=Post)]
+    mock_total_posts = 10
+
+    # Mock the query object
+    mock_query = MagicMock()
+    mock_query.order_by.return_value.count.return_value = mock_total_posts
+    mock_query.order_by.return_value.offset.return_value.limit.return_value.all.return_value = mock_posts
+
+    # Patch the query methods
+    mocker.patch('App.api.wrapper.schema.db.session.query', return_value=mock_query)
+
+    page = 1
+    per_page = 2
+
+    posts, total_posts = get_paginated_posts_db(page, per_page)
+
+    assert posts == mock_posts
+    assert total_posts == mock_total_posts
+
+def test_get_paginated_posts_db_with_error(mocker):
+    mocker.patch('App.api.wrapper.schema.db.session.query', side_effect=Exception("Database error"))
+
+    page = 1
+    per_page = 2
+    user_uid = 1
+
+    with pytest.raises(Exception) as excinfo:
+        get_paginated_posts_db(page, per_page, user_uid)
+    
+    assert str(excinfo.value) == "Database error"
